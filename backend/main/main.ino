@@ -33,6 +33,7 @@ const byte DNS_PORT = 53;
 // ------------------- Web Pages --------------------
 const char page[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -40,55 +41,68 @@ const char page[] PROGMEM = R"rawliteral(
 		<title>Lamp control</title>
 	</head>
 	<body>
-		<div class="timeline">
-			<p class="upperc">Timeline</p>
-			<div id="times">
-				<button class="time-entry clone" time="5" onclick="handleTimeline(this)">
-					<div class="time-color"></div>
-					<p class="time-text small">00 min</p>
-					<svg height="10px" viewBox="0 0 10 10">
-						<circle cx="50%" cy="50%" r="40%" fill="white" />
-					</svg>
-				</button>
-				<button class="time-entry-add" onclick="handleTimeline()">
-					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
-						<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-					</svg>
-				</button>
+		<div id="settings-area">
+			<div id="buttons">
+				<button>HK</button>
+				<button>ADAPTIVE</button>
+				<button id="btn_on" onclick="onOff()">ON</button>
 			</div>
-		</div>
-		<div class="color">
-			<p class="upperc">Shown color(s) per timestamp</p>
-			<div id="colors">
-				<input type="color" onchange="handleColor(this, this.value)" value="#fffffff" class="color-entry clone" />
-				<button class="time-entry-add" onclick="handleColor(this)">
-					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
-						<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-					</svg>
-				</button>
+			<div class="timeline">
+				<p class="upperc">Timeline</p>
+				<div id="times">
+					<button class="time-entry clone" time="5" onclick="handleTimeline(this)">
+						<div class="time-color"></div>
+						<p class="time-text small">00 min</p>
+						<svg height="10px" viewBox="0 0 10 10">
+							<circle cx="50%" cy="50%" r="40%" fill="white" />
+						</svg>
+					</button>
+					<button class="time-entry-add" onclick="handleTimeline()">
+						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+							<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+						</svg>
+					</button>
+				</div>
 			</div>
-		</div>
-		<div class="pattern">
-			<p class="upperc">Patterns the colors are shown in</p>
-			<div id="patterns">
-				<button class="pattern-waves" pattern="waves" onclick="handlePattern('waves')"></button>
-				<button class="pattern-pulse" pattern="pulse" onclick="handlePattern('pulse')"></button>
+			<div class="color">
+				<p class="upperc">Shown color(s) per timestamp</p>
+				<div id="colors">
+					<input
+						type="color"
+						onclick="checkForColorDeletion(event, this)"
+						onchange="handleColor(this, this.value)"
+						value="#fffffff"
+						class="color-entry clone"
+					/>
+					<button class="time-entry-add" onclick="handleColor(this)">
+						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+							<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+						</svg>
+					</button>
+				</div>
 			</div>
-		</div>
-		<div id="time">
-			<p class="upperc">Minutes the timestamp is shown</p>
-			<div>
-				<button id="minus" onclick="changeTime(-1)">
-					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
-						<path d="M200-440v-80h560v80H200Z" />
-					</svg>
-				</button>
-				<input type="number" id="time-teller" onchange="changeTime(this.value)" min="0" max="10000" value="10" />
-				<button id="plus" onclick="changeTime(1)">
-					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
-						<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-					</svg>
-				</button>
+			<div class="pattern">
+				<p class="upperc">Patterns the colors are shown in</p>
+				<div id="patterns">
+					<button class="pattern-waves" pattern="waves" onclick="handlePattern('waves')"></button>
+					<!--<button class="pattern-pulse" pattern="pulse" onclick="handlePattern('pulse')"></button>-->
+				</div>
+			</div>
+			<div id="time">
+				<p class="upperc">Minutes the timestamp is shown</p>
+				<div>
+					<button id="minus" onclick="changeTime(-1)">
+						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+							<path d="M200-440v-80h560v80H200Z" />
+						</svg>
+					</button>
+					<input type="number" id="time-teller" onchange="changeTime(this.value)" min="0" max="10000" value="10" />
+					<button id="plus" onclick="changeTime(1)">
+						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+							<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+						</svg>
+					</button>
+				</div>
 			</div>
 		</div>
 		<button onclick="set()" id="sendBtn">send</button>
@@ -119,6 +133,31 @@ const char page[] PROGMEM = R"rawliteral(
 			padding: var(--margin);
 			max-width: 600px;
 			margin: 0 auto;
+			display: flex;
+			flex-direction: column;
+			height: 100dvh;
+		}
+
+		#buttons {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			grid-template-rows: 1fr;
+			grid-column-gap: 1px;
+			grid-row-gap: 0px;
+			background-color: var(--grey);
+			padding: 0 1px 1px 1px;
+		}
+		#buttons > button {
+			background-color: transparent;
+			border: none;
+			background-color: var(--bg);
+			padding: calc(var(--margin) * 2);
+			font-size: var(--small);
+		}
+
+		#settings-area {
+			flex-grow: 1;
+			overflow-y: scroll;
 		}
 
 		.upperc {
@@ -130,11 +169,12 @@ const char page[] PROGMEM = R"rawliteral(
 			font-size: var(--small);
 		}
 
+		#buttons,
 		.timeline,
 		.color,
 		#time,
 		.pattern {
-			padding-bottom: calc(var(--margin) * 2);
+			margin-bottom: calc(var(--margin) * 4);
 		}
 		#times {
 			border-top: 1px solid var(--grey);
@@ -192,6 +232,7 @@ const char page[] PROGMEM = R"rawliteral(
 			border: var(--border);
 			width: calc(var(--margin) * 5);
 			border-radius: var(--radius);
+			flex-shrink: 0;
 		}
 
 		#time > div {
@@ -218,6 +259,7 @@ const char page[] PROGMEM = R"rawliteral(
 			border: none;
 			padding: 0;
 			border-radius: var(--radius);
+			flex-shrink: 0;
 		}
 		#patterns {
 			display: flex;
@@ -254,10 +296,12 @@ const char page[] PROGMEM = R"rawliteral(
 			height: calc(var(--margin) * 4);
 			text-transform: uppercase;
 			font-weight: bold;
+			margin-top: var(--margin);
 		}
 	</style>
 	<script>
 		let data = {
+			on: false,
 			activeTime: 0,
 			activeColor: 0,
 			times: [
@@ -268,6 +312,14 @@ const char page[] PROGMEM = R"rawliteral(
 				},
 			],
 		};
+		function onOff() {
+			if (data.on) {
+				data.on = false;
+			} else {
+				data.on = true;
+			}
+			set();
+		}
 		function handleTimeline(el) {
 			if (el) {
 				let elI = parseInt(el.getAttribute("index"));
@@ -295,6 +347,18 @@ const char page[] PROGMEM = R"rawliteral(
 			}
 			if (data.times[data.activeTime].time < 1) data.times[data.activeTime].time = 1;
 			render();
+		}
+		let lastClickedColor = -1;
+		function checkForColorDeletion(event, el, value) {
+			let index = el.getAttribute("index");
+			if (index === lastClickedColor) {
+				event.preventDefault();
+				if (window.confirm("Delete the color?")) {
+					data.times[data.activeTime].colors.splice(index, 1);
+					render();
+				}
+			}
+			lastClickedColor = index;
 		}
 		function handleColor(el, color) {
 			console.log(data.activeColor, data.times[data.activeTime]);
@@ -375,6 +439,7 @@ const char page[] PROGMEM = R"rawliteral(
 		}
 	</script>
 </html>
+
   )rawliteral";
 void handleRoot() {
   server.send(200, "text/html", page);
@@ -386,6 +451,9 @@ class Light {
 	private:
 		bool hasChanges = true;
 		JsonDocument data;
+		unsigned long timeSinceDataWasSet = 0;
+		unsigned long timeCurrentTimelineIsStarted = 0;
+		int currentTimeIndex = 0;
 
 		const int led_pattern[10][12] = {
 			{-1, -1, 15, 14, 13, 12, 11, 10, 9, 8, 7, -1},
@@ -403,9 +471,10 @@ class Light {
 		void setData(JsonDocument givenData){
 			data = givenData;
 			hasChanges = true;
+			timeSinceDataWasSet = millis();
+			timeCurrentTimelineIsStarted = millis();
+			currentTimeIndex = 0;
 		}
-    void lightsOn(){}
-    void lightsOff(){}
 
 		// Sets the whole lamp to display a color color
     void setSolid(const char color[]){
@@ -413,24 +482,46 @@ class Light {
       hexToRGB(color, r, g, b);
       strip.fill(strip.Color(r, g, b));
     }
-		// Sets the lamp to display color in waves
-		void setWaves(){
-			
-		}
 		void setPattern(const char pattern[]){
 			for(int i = 0; i < 10; i++){
 				strip.setPixelColor(led_pattern[i][4], strip.Color(255, 0, 0));
 			}
 		}
-		void buildPattern(){
-			int build_pattern[LED_COUNT] = {}; // stores the color value of every led
-		}
-		void update(){
-			if(!hasChanges){
+		void update(unsigned long currentUpdateMs){
+			if(data.isNull()){
 				return;
 			}
+
+			JsonObject currentTimeObject = data["times"][currentTimeIndex];
+
+			int secondsTimeIsDisplayedOnTimeline = currentTimeObject["time"];
+			if(currentTimeIndex > 0){
+				for(int i = 0; i < currentTimeIndex; i++){
+					int accumulatedTime = data["times"][i]["time"] | 0;
+					secondsTimeIsDisplayedOnTimeline += accumulatedTime;
+				}
+			}
+
+			const char* currentColor = currentTimeObject["colors"][0] | "";
+
+			if(currentUpdateMs >= timeCurrentTimelineIsStarted + (secondsTimeIsDisplayedOnTimeline * 1000)){
+				if(currentTimeIndex < data["times"].size()){
+					currentTimeIndex += 1;
+				}else{
+					currentTimeIndex = 0;
+					timeCurrentTimelineIsStarted = millis();
+				}
+			}
+
+			bool on = data["on"] | false;
+			if(on == false){
+				setSolid("#000000");
+				strip.show();
+				return;
+			}
+			setSolid(currentColor);
+
 			strip.show();
-			hasChanges = false;
 		}
     void hexToRGB(const String &hex, int &r, int &g, int &b) {
       String h = hex;
@@ -469,8 +560,6 @@ void setup() {
 
   light.init();
   light.setBrightness(BRIGHTNESS);
-  //light.setSolid("#ffffff");
-	light.setWaves();
 
   delay(1000);
   Serial.begin(115200);
@@ -495,18 +584,8 @@ void setup() {
     Serial.println("POST body: " + body);
     JsonDocument doc;
     deserializeJson(doc, body);
+
 		light.setData(doc);
-    const char* currentColor = doc["times"][0]["colors"][0] | "";
-		const char* currentPattern = doc["times"][0]["pattern"] | "";
-		Serial.print("pattern:");
-		Serial.println(currentPattern);
-		if(strcmp(currentPattern, "waves") == 0){
-			//light.setPattern("waves");
-		}else{
-			//light.setSolid(currentColor);
-			//light.setPattern("waves");
-		}
-    Serial.println(currentColor);
     
     server.send(200, "text/plain", "OK");
   });
@@ -525,7 +604,7 @@ void loop() {
 	if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
 
-    light.update();
+    light.update(currentMillis);
   }
 
   dnsServer.processNextRequest();   // <-- Required for DNS spoofing

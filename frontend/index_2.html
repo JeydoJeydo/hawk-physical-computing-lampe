@@ -7,6 +7,11 @@
 	</head>
 	<body>
 		<div id="settings-area">
+			<div id="buttons">
+				<button>HK</button>
+				<button>ADAPTIVE</button>
+				<button id="btn_on" onclick="onOff()">ON</button>
+			</div>
 			<div class="timeline">
 				<p class="upperc">Timeline</p>
 				<div id="times">
@@ -98,6 +103,23 @@
 			height: 100dvh;
 		}
 
+		#buttons {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			grid-template-rows: 1fr;
+			grid-column-gap: 1px;
+			grid-row-gap: 0px;
+			background-color: var(--grey);
+			padding: 0 1px 1px 1px;
+		}
+		#buttons > button {
+			background-color: transparent;
+			border: none;
+			background-color: var(--bg);
+			padding: calc(var(--margin) * 2);
+			font-size: var(--small);
+		}
+
 		#settings-area {
 			flex-grow: 1;
 			overflow-y: scroll;
@@ -112,11 +134,12 @@
 			font-size: var(--small);
 		}
 
+		#buttons,
 		.timeline,
 		.color,
 		#time,
 		.pattern {
-			padding-bottom: calc(var(--margin) * 4);
+			margin-bottom: calc(var(--margin) * 4);
 		}
 		#times {
 			border-top: 1px solid var(--grey);
@@ -243,6 +266,7 @@
 	</style>
 	<script>
 		let data = {
+			on: false,
 			activeTime: 0,
 			activeColor: 0,
 			times: [
@@ -253,6 +277,14 @@
 				},
 			],
 		};
+		function onOff() {
+			if (data.on) {
+				data.on = false;
+			} else {
+				data.on = true;
+			}
+			set();
+		}
 		function handleTimeline(el) {
 			if (el) {
 				let elI = parseInt(el.getAttribute("index"));
@@ -301,7 +333,6 @@
 			} else {
 				data.activeColor = data.times[data.activeTime].colors.length;
 				data.times[data.activeTime].colors.push("#ffffff");
-				//lastClickedColor = "#ffffff";
 			}
 			render();
 		}
