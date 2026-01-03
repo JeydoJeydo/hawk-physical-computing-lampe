@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Lamp control</title>
+	</head>
+	<body>
+		<div class="timeline">
+			<p class="upperc">timeline</p>
+			<div id="times">
+				<button class="time-entry clone active" time="5" onclick="changeTimeActivity(this)">
+					<div class="time-color"></div>
+					<p class="time-text small">00 min</p>
+				</button>
+				<button class="time-entry-add" onclick="addTimeEntry()">
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+						<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+					</svg>
+				</button>
+			</div>
+		</div>
+		<div class="color">
+			<p class="upperc">color</p>
+			<div id="colors">
+				<input type="color" value="#fffffff" class="color-entry clone" />
+				<button class="time-entry-add" onclick="addColorEntry()">
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+						<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+					</svg>
+				</button>
+			</div>
+		</div>
+		<div id="time">
+			<p class="upperc">Minutes this color is shown</p>
+			<div>
+				<button id="minus" onclick="changeTime(this, false)">
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+						<path d="M200-440v-80h560v80H200Z" />
+					</svg>
+				</button>
+				<input type="number" id="time-teller" onchange="changeTime(this, false, this.value)" min="0" max="10000" value="10" />
+				<button id="plus" onclick="changeTime(this, true)">
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+						<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+					</svg>
+				</button>
+			</div>
+		</div>
+	</body>
+	<style>
+		* {
+			margin: 0;
+			box-sizing: border-box;
+		}
+		p,
+		button,
+		input {
+			color: white;
+			font-size: var(--regular);
+		}
+		:root {
+			--bg: #1c1c1c;
+			--grey: #aaaaaa;
+			--radius: 3px;
+			--margin: 10px;
+			--border: 1px dashed var(--grey);
+			--regular: 1rem;
+			--small: 0.8rem;
+		}
+		body {
+			background-color: var(--bg);
+			padding: var(--margin);
+		}
+
+		.upperc {
+			text-transform: uppercase;
+			font-weight: bold;
+			margin-bottom: var(--margin);
+		}
+		.small {
+			font-size: var(--small);
+		}
+
+		.timeline,
+		.color {
+			padding-bottom: var(--small);
+		}
+		#times,
+		#colors {
+			display: flex;
+			gap: var(--margin);
+			overflow-x: scroll;
+			padding-bottom: calc(var(--small) + 2px);
+		}
+		.time-entry {
+			position: relative;
+			border: none;
+			background-color: transparent;
+			padding: 0;
+		}
+		.time-entry.clone {
+			display: none;
+		}
+		.time-entry > p {
+			text-align: center;
+			position: absolute;
+			width: 100%;
+			white-space: nowrap;
+			overflow: hidden;
+		}
+		.time-color {
+			width: calc(var(--margin) * 5);
+			height: calc(var(--margin) * 15);
+			background-color: red;
+			border-radius: var(--radius);
+		}
+		.time-entry-add {
+			background-color: transparent;
+			border: var(--border);
+			width: calc(var(--margin) * 6);
+			border-radius: var(--radius);
+		}
+
+		#time > div {
+			display: flex;
+			align-items: center;
+		}
+		#time > div > * {
+			flex-grow: 1;
+			text-align: center;
+			border-radius: var(--radius);
+			height: calc(var(--margin) * 5);
+		}
+		#time button {
+			background-color: transparent;
+			border: var(--border);
+		}
+		#time input {
+			background-color: transparent;
+			border: none;
+		}
+		.color-entry {
+			appearance: none;
+			background-color: transparent;
+			border: none;
+			padding: 0;
+			border-radius: var(--radius);
+		}
+	</style>
+	<script>
+		let data = {
+			activeTime: 0,
+			times: [
+				{
+					time: 5,
+					colors: ["#fff"],
+				},
+			],
+		};
+		function addTimeEntry() {
+			let elem = document.querySelector(".time-entry.clone").cloneNode(true);
+			let parent = document.querySelector("#times");
+			elem.querySelector(".time-text").innerText = "5 min";
+			elem.classList.remove("clone");
+			parent.insertBefore(elem, parent.childNodes[parent.childNodes.length - 2]);
+			changeTimeActivity(elem);
+		}
+		function addColorEntry() {
+			let elem = document.querySelector(".color-entry.clone").cloneNode(true);
+			let parent = document.querySelector("#colors");
+			elem.classList.remove("clone");
+			parent.insertBefore(elem, parent.childNodes[parent.childNodes.length - 2]);
+		}
+		function changeTimeActivity(el) {
+			document.querySelectorAll(".active").forEach((el) => {
+				el.classList.remove("active");
+			});
+			el.classList.add("active");
+			document.querySelector("#time-teller").value = el.getAttribute("time");
+		}
+		addTimeEntry();
+		function changeTime(el, d, overwrite) {
+			console.log(el, d, overwrite);
+			let activeElem = document.querySelector(".active");
+			let cTime = parseInt(activeElem.getAttribute("time"));
+			if ((cTime <= 1 && !d) || overwrite < 1) return;
+			if (overwrite) {
+				cTime = overwrite;
+			} else {
+				cTime += d ? 1 : -1;
+				document.querySelector("#time-teller").value = cTime;
+			}
+			activeElem.setAttribute("time", cTime);
+			activeElem.querySelector(".time-color").style.width = `calc(${activeElem.getAttribute("time")} * var(--margin))`;
+			activeElem.querySelector(".time-text").innerText = cTime + " min";
+			console.log(activeElem);
+		}
+	</script>
+</html>
