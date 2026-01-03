@@ -6,55 +6,63 @@
 		<title>Lamp control</title>
 	</head>
 	<body>
-		<div class="timeline">
-			<p class="upperc">Timeline</p>
-			<div id="times">
-				<button class="time-entry clone" time="5" onclick="handleTimeline(this)">
-					<div class="time-color"></div>
-					<p class="time-text small">00 min</p>
-					<svg height="10px" viewBox="0 0 10 10">
-						<circle cx="50%" cy="50%" r="40%" fill="white" />
-					</svg>
-				</button>
-				<button class="time-entry-add" onclick="handleTimeline()">
-					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
-						<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-					</svg>
-				</button>
+		<div id="settings-area">
+			<div class="timeline">
+				<p class="upperc">Timeline</p>
+				<div id="times">
+					<button class="time-entry clone" time="5" onclick="handleTimeline(this)">
+						<div class="time-color"></div>
+						<p class="time-text small">00 min</p>
+						<svg height="10px" viewBox="0 0 10 10">
+							<circle cx="50%" cy="50%" r="40%" fill="white" />
+						</svg>
+					</button>
+					<button class="time-entry-add" onclick="handleTimeline()">
+						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+							<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+						</svg>
+					</button>
+				</div>
 			</div>
-		</div>
-		<div class="color">
-			<p class="upperc">Shown color(s) per timestamp</p>
-			<div id="colors">
-				<input type="color" onchange="handleColor(this, this.value)" value="#fffffff" class="color-entry clone" />
-				<button class="time-entry-add" onclick="handleColor(this)">
-					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
-						<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-					</svg>
-				</button>
+			<div class="color">
+				<p class="upperc">Shown color(s) per timestamp</p>
+				<div id="colors">
+					<input
+						type="color"
+						onclick="checkForColorDeletion(event, this)"
+						onchange="handleColor(this, this.value)"
+						value="#fffffff"
+						class="color-entry clone"
+					/>
+					<button class="time-entry-add" onclick="handleColor(this)">
+						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+							<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+						</svg>
+					</button>
+				</div>
 			</div>
-		</div>
-		<div class="pattern">
-			<p class="upperc">Patterns the colors are shown in</p>
-			<div id="patterns">
-				<button class="pattern-waves" pattern="waves" onclick="handlePattern('waves')"></button>
-				<button class="pattern-pulse" pattern="pulse" onclick="handlePattern('pulse')"></button>
+			<div class="pattern">
+				<p class="upperc">Patterns the colors are shown in</p>
+				<div id="patterns">
+					<button class="pattern-waves" pattern="waves" onclick="handlePattern('waves')"></button>
+					<!--<button class="pattern-pulse" pattern="pulse" onclick="handlePattern('pulse')"></button>-->
+				</div>
 			</div>
-		</div>
-		<div id="time">
-			<p class="upperc">Minutes the timestamp is shown</p>
-			<div>
-				<button id="minus" onclick="changeTime(-1)">
-					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
-						<path d="M200-440v-80h560v80H200Z" />
-					</svg>
-				</button>
-				<input type="number" id="time-teller" onchange="changeTime(this.value)" min="0" max="10000" value="10" />
-				<button id="plus" onclick="changeTime(1)">
-					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
-						<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-					</svg>
-				</button>
+			<div id="time">
+				<p class="upperc">Minutes the timestamp is shown</p>
+				<div>
+					<button id="minus" onclick="changeTime(-1)">
+						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+							<path d="M200-440v-80h560v80H200Z" />
+						</svg>
+					</button>
+					<input type="number" id="time-teller" onchange="changeTime(this.value)" min="0" max="10000" value="10" />
+					<button id="plus" onclick="changeTime(1)">
+						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+							<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+						</svg>
+					</button>
+				</div>
 			</div>
 		</div>
 		<button onclick="set()" id="sendBtn">send</button>
@@ -85,6 +93,14 @@
 			padding: var(--margin);
 			max-width: 600px;
 			margin: 0 auto;
+			display: flex;
+			flex-direction: column;
+			height: 100dvh;
+		}
+
+		#settings-area {
+			flex-grow: 1;
+			overflow-y: scroll;
 		}
 
 		.upperc {
@@ -100,7 +116,7 @@
 		.color,
 		#time,
 		.pattern {
-			padding-bottom: calc(var(--margin) * 2);
+			padding-bottom: calc(var(--margin) * 4);
 		}
 		#times {
 			border-top: 1px solid var(--grey);
@@ -158,6 +174,7 @@
 			border: var(--border);
 			width: calc(var(--margin) * 5);
 			border-radius: var(--radius);
+			flex-shrink: 0;
 		}
 
 		#time > div {
@@ -184,6 +201,7 @@
 			border: none;
 			padding: 0;
 			border-radius: var(--radius);
+			flex-shrink: 0;
 		}
 		#patterns {
 			display: flex;
@@ -220,6 +238,7 @@
 			height: calc(var(--margin) * 4);
 			text-transform: uppercase;
 			font-weight: bold;
+			margin-top: var(--margin);
 		}
 	</style>
 	<script>
@@ -262,6 +281,18 @@
 			if (data.times[data.activeTime].time < 1) data.times[data.activeTime].time = 1;
 			render();
 		}
+		let lastClickedColor = -1;
+		function checkForColorDeletion(event, el, value) {
+			let index = el.getAttribute("index");
+			if (index === lastClickedColor) {
+				event.preventDefault();
+				if (window.confirm("Delete the color?")) {
+					data.times[data.activeTime].colors.splice(index, 1);
+					render();
+				}
+			}
+			lastClickedColor = index;
+		}
 		function handleColor(el, color) {
 			console.log(data.activeColor, data.times[data.activeTime]);
 			if (color) {
@@ -270,6 +301,7 @@
 			} else {
 				data.activeColor = data.times[data.activeTime].colors.length;
 				data.times[data.activeTime].colors.push("#ffffff");
+				//lastClickedColor = "#ffffff";
 			}
 			render();
 		}
