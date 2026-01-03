@@ -8,7 +8,7 @@
 	<body>
 		<div id="settings-area">
 			<div id="buttons">
-				<button>HK</button>
+				<button onclick="getData()">HK</button>
 				<button>ADAPTIVE</button>
 				<button id="btn_on" onclick="onOff()">ON</button>
 			</div>
@@ -267,6 +267,7 @@
 	<script>
 		let data = {
 			on: false,
+			restart: true,
 			activeTime: 0,
 			activeColor: 0,
 			times: [
@@ -398,6 +399,15 @@
 					method: "POST",
 					body: JSON.stringify(data),
 				});
+			} catch (e) {
+				window.alert(e);
+			}
+		}
+		async function getData() {
+			try {
+				let res = await fetch("/state");
+				let js = await res.json();
+				console.log(js);
 			} catch (e) {
 				window.alert(e);
 			}

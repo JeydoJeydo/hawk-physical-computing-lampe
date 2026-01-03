@@ -33,7 +33,6 @@ const byte DNS_PORT = 53;
 // ------------------- Web Pages --------------------
 const char page[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -43,7 +42,7 @@ const char page[] PROGMEM = R"rawliteral(
 	<body>
 		<div id="settings-area">
 			<div id="buttons">
-				<button>HK</button>
+				<button onclick="getData()">HK</button>
 				<button>ADAPTIVE</button>
 				<button id="btn_on" onclick="onOff()">ON</button>
 			</div>
@@ -437,9 +436,19 @@ const char page[] PROGMEM = R"rawliteral(
 				window.alert(e);
 			}
 		}
+		async function getData() {
+			try {
+				let res = await fetch("/state", {
+					method: "GET",
+				});
+				let js = await res.json();
+				console.log(res, js);
+			} catch (e) {
+				window.alert(e);
+			}
+		}
 	</script>
 </html>
-
   )rawliteral";
 void handleRoot() {
   server.send(200, "text/html", page);
@@ -505,7 +514,7 @@ class Light {
 			const char* currentColor = currentTimeObject["colors"][0] | "";
 
 			if(currentUpdateMs >= timeCurrentTimelineIsStarted + (secondsTimeIsDisplayedOnTimeline * 1000)){
-				if(currentTimeIndex < data["times"].size()){
+				if(currentTimeIndex < data["times"].size() && data["times"].size() > 1){
 					currentTimeIndex += 1;
 				}else{
 					currentTimeIndex = 0;
@@ -542,6 +551,10 @@ class Light {
     void setBrightness(const int brightness){
       strip.setBrightness(brightness);
     }
+
+		JsonDocument getData(){
+			return data;
+		}
 
     void init(){
       strip.begin();
@@ -589,6 +602,17 @@ void setup() {
     
     server.send(200, "text/plain", "OK");
   });
+
+	server.on("/state", HTTP_GET, []() {
+		JsonDocument data;
+
+		data = light.getData();
+
+		String response;
+		serializeJson(data, response);
+
+		server.send(200, "application/json", response);
+	});
 
   server.begin();
   Serial.println("HTTP server started");
