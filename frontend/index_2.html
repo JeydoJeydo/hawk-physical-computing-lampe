@@ -6,6 +6,63 @@
 		<title>Lamp control</title>
 	</head>
 	<body>
+		<div id="timeline">
+			<p class="font-header color-white">Timeline</p>
+			<div id="timeline-inner"></div>
+		</div>
+		<div id="widgets">
+			<div class="widget">
+				<p class="widget-header">Color Type</p>
+				<div class="widget-body simple-select">
+					<button class="btn-active">Solid</button>
+					<button class="btn-inactive">Gradient</button>
+					<button class="btn-inactive">Draw</button>
+				</div>
+			</div>
+			<div class="color-widget"></div>
+			<div class="widget">
+				<p class="widget-header">Duration</p>
+				<div class="widget-body duration-widget">
+					<button class="btn-filled">
+						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+							<path d="M200-440v-80h560v80H200Z" />
+						</svg>
+					</button>
+					<div class="duration-middle">
+						<input type="number" id="time-teller" onchange="changeTime(this.value)" min="0" max="10000" value="10" />
+						<p>min</p>
+					</div>
+					<button class="btn-filled">
+						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+							<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+						</svg>
+					</button>
+				</div>
+			</div>
+			<div class="widget">
+				<p class="widget-header">Duration type</p>
+				<div class="widget-body simple-select">
+					<button class="btn-active">Seconds</button>
+					<button class="btn-inactive">Minutes</button>
+					<button class="btn-inactive">Hours</button>
+				</div>
+			</div>
+			<div class="widget-halfed">
+				<div class="widget">
+					<p class="widget-header">Lamp<br />Wakeup</p>
+					<div class="widget-body">
+						<input type="time" class="lamp-wake wakeup" />
+					</div>
+				</div>
+				<div class="widget">
+					<p class="widget-header">Lamp<br />Sleep</p>
+					<div class="widget-body">
+						<input type="time" class="lamp-wake sleep" />
+					</div>
+				</div>
+			</div>
+		</div>
+		<!--
 		<div id="settings-area">
 			<div id="buttons">
 				<button onclick="getData()">HK</button>
@@ -57,7 +114,6 @@
 				<p class="upperc">Patterns the colors are shown in</p>
 				<div id="patterns">
 					<button class="pattern-waves" pattern="waves" onclick="handlePattern('waves')"></button>
-					<!--<button class="pattern-pulse" pattern="pulse" onclick="handlePattern('pulse')"></button>-->
 				</div>
 			</div>
 			<div id="time">
@@ -81,6 +137,7 @@
 		<div id="snackbar">
 			<p id="snackbarText"></p>
 		</div>
+	-->
 	</body>
 	<style>
 		* {
@@ -95,12 +152,16 @@
 			font-family: Arial, Helvetica, sans-serif;
 		}
 		:root {
+			--white: #ffffff;
 			--bg: #1c1c1c;
-			--grey: #aaaaaa;
+			--grey: #575757;
 			--red: #ff4d4d;
-			--radius: 3px;
+			--areaHighlight: #212121;
+
+			--radius: 25px;
 			--margin: 10px;
-			--border: 1px dashed var(--grey);
+
+			--header: 2rem;
 			--regular: 1rem;
 			--small: 0.8rem;
 		}
@@ -109,9 +170,93 @@
 			padding: var(--margin);
 			max-width: 600px;
 			margin: 0 auto;
+		}
+
+		/*global styles*/
+		.font-header {
+			font-size: var(--header);
+		}
+		.color-white {
+			color: var(--white);
+		}
+		.btn-active,
+		.btn-inactive,
+		.btn-filled {
+			padding: calc(var(--margin) * 1.5) var(--margin);
+			border-radius: 500px;
+		}
+		.btn-active {
+			background-color: transparent;
+			border: 1px solid var(--white);
+		}
+		.btn-inactive {
+			background-color: transparent;
+			border: 1px solid var(--grey);
+		}
+		.btn-filled {
+			background-color: var(--grey);
+			border: none;
+		}
+
+		/*widgets*/
+		#widgets {
 			display: flex;
 			flex-direction: column;
-			height: 100dvh;
+			gap: calc(var(--margin) / 2);
+		}
+		.widget-halfed {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			grid-column-gap: calc(var(--margin) / 2);
+		}
+		.widget {
+			background-color: var(--areaHighlight);
+			padding: calc(var(--margin) * 1.5);
+			border-radius: var(--radius);
+			border: 1px solid var(--grey);
+			min-height: 45vw;
+			display: flex;
+			flex-direction: column;
+		}
+		.widget > .widget-header {
+			flex-grow: 1;
+		}
+
+		.simple-select {
+			display: flex;
+			flex-wrap: wrap;
+		}
+		.simple-select > button {
+			flex-grow: 1;
+		}
+
+		/*lamp wakeup and slee*/
+		.lamp-wake {
+			background-color: transparent;
+			border: none;
+			font-size: var(--header);
+			padding: 0;
+		}
+
+		/*duration*/
+		.duration-widget {
+			display: flex;
+		}
+		.duration-widget > button {
+			aspect-ratio: 1;
+			flex-shrink: 0;
+		}
+		.duration-middle {
+			display: flex;
+			flex-grow: 1;
+			justify-content: center;
+			align-items: center;
+		}
+		.duration-middle > input {
+			font-size: var(--header);
+			background-color: transparent;
+			width: 4rem;
+			border: none;
 		}
 
 		#buttons {
