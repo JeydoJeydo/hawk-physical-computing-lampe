@@ -20,6 +20,10 @@
 #define LED_COUNT 97
 #define BRIGHTNESS 255
 
+const int onOffButtonPin = 14;
+const int adaptiveToggleButtonPin = 13;
+const int hotkeyButtonPin = 15;
+
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 const char *ssid = APSSID;
@@ -581,7 +585,11 @@ class Light {
 			timeCurrentTimelineIsStarted = millis();
 			currentTimeIndex = 0;
 		}
-
+		void toggleOnOff(){
+			//setSolid("#ffffff");
+			data["on"] = !data["on"];
+			//strip.show();
+		}
 		// Sets the whole lamp to display a color color
     void setSolid(const char color[]){
       int r, g, b;
@@ -660,6 +668,16 @@ class Light {
 
     void init(){
       strip.begin();
+
+			// check if data is in eprom
+			// check defaults
+			data["on"] = false;
+			data["restart"] = true;
+			data["activeTime"] = 0;
+			data["activeColor"] = 0;
+			data["times"][0]["time"] = 5;
+			data["times"][0]["colors"][0] = "#ffffff";
+			data["times"][0]["pattern"] = "waves";
     }
 };
 
@@ -672,6 +690,10 @@ void setup() {
   #if defined(__AVR_ATtiny85__) && (F_CPU == 16000000)
     clock_prescale_set(clock_div_1);
   #endif
+
+	pinMode(onOffButtonPin, INPUT);
+	pinMode(adaptiveToggleButtonPin, INPUT);
+	pinMode(hotkeyButtonPin, INPUT);
 
   light.init();
   light.setBrightness(BRIGHTNESS);
@@ -724,7 +746,79 @@ void setup() {
 unsigned long previousMillis = 0;
 const unsigned long interval = 50;  // ms between LED updates
 
+
+
+
+
+
+//int onOffButtonState = 0;
+int buttonState;            // the current reading from the input pin
+int lastButtonState = LOW;  // the previous reading from the input pin
+
+// the following variables are unsigned longs because the time, measured in
+// milliseconds, will quickly become a bigger number than can be stored in an int.
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
+
+const int msForLongpress = 500;
+
+
+
+
+
 void loop() {
+	/*
+	onOffButtonState = digitalRead(onOffButtonPin);
+	Serial.println(onOffButtonState);
+	*/
+
+
+
+	// read the state of the switch into a local variable:
+  int reading = digitalRead(onOffButtonPin);
+
+  // check to see if you just pressed the button
+  // (i.e. the input went from LOW to HIGH), and you've waited long enough
+  // since the last press to ignore any noise:
+
+  // If the switch changed, due to noise or pressing:
+  if (reading != lastButtonState) {
+    // reset the debouncing timer
+    lastDebounceTime = millis();
+  }
+
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    // whatever the reading is at, it's been there for longer than the debounce
+    // delay, so take it as the actual current state:
+
+    // if the button state has changed:
+    if (reading != buttonState) {
+      buttonState = reading;
+
+      // only toggle the LED if the new button state is HIGH
+      if (buttonState == HIGH) {
+        //ledState = !ledState;
+				light.toggleOnOff();
+      }
+    }
+  }
+
+  // set the LED:
+  //digitalWrite(ledPin, ledState);
+	Serial.println(buttonState);
+
+	if((millis() - lastDebounceTime) > msForLongpress && buttonState == HIGH){
+		Serial.println("LONG PRESS");
+	}
+
+  // save the reading. Next time through the loop, it'll be the lastButtonState:
+  lastButtonState = reading;
+
+
+
+
+
+
 	unsigned long currentMillis = millis();
 
 	if (currentMillis - previousMillis >= interval) {
