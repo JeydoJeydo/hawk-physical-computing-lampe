@@ -18,7 +18,11 @@
 
 #define LED_PIN 12
 #define LED_COUNT 97
-#define BRIGHTNESS 255
+//#define BRIGHTNESS 255
+
+const int MAX_DIM = 150;
+const int MIN_DIM = 5;
+const int DIM_SPEED = 2;
 
 const int onOffButtonPin = 14;
 const int adaptiveToggleButtonPin = 13;
@@ -564,6 +568,7 @@ class Light {
 		unsigned long timeSinceDataWasSet = 0;
 		unsigned long timeCurrentTimelineIsStarted = 0;
 		int currentTimeIndex = 0;
+		int brightness = 255;
 
 		const int led_pattern[10][12] = {
 			{-1, -1, 15, 14, 13, 12, 11, 10, 9, 8, 7, -1},
@@ -589,6 +594,18 @@ class Light {
 			//setSolid("#ffffff");
 			data["on"] = !data["on"];
 			//strip.show();
+		}
+		void dim(bool dimDirection = true){
+			if(dimDirection){
+				if(brightness > MIN_DIM){
+					brightness -= DIM_SPEED;
+				}
+			}else{
+				if(brightness < MAX_DIM){
+					brightness += DIM_SPEED;
+				}
+			}
+			strip.setBrightness(brightness);
 		}
 		// Sets the whole lamp to display a color color
     void setSolid(const char color[]){
@@ -696,7 +713,7 @@ void setup() {
 	pinMode(hotkeyButtonPin, INPUT);
 
   light.init();
-  light.setBrightness(BRIGHTNESS);
+  light.setBrightness(MAX_DIM);
 
   delay(1000);
   Serial.begin(115200);
@@ -754,6 +771,8 @@ const unsigned long interval = 50;  // ms between LED updates
 //int onOffButtonState = 0;
 int buttonState;            // the current reading from the input pin
 int lastButtonState = LOW;  // the previous reading from the input pin
+bool longPressIsInAction = false;
+bool longPressDirection = false; // false = dim / true = brighten
 
 // the following variables are unsigned longs because the time, measured in
 // milliseconds, will quickly become a bigger number than can be stored in an int.
@@ -796,10 +815,12 @@ void loop() {
       buttonState = reading;
 
       // only toggle the LED if the new button state is HIGH
-      if (buttonState == HIGH) {
-        //ledState = !ledState;
+      if (buttonState == LOW && !longPressIsInAction) {
 				light.toggleOnOff();
-      }
+      }else if(buttonState == LOW && longPressIsInAction){
+				longPressIsInAction = false;
+				longPressDirection = !longPressDirection;
+			}
     }
   }
 
@@ -808,7 +829,9 @@ void loop() {
 	Serial.println(buttonState);
 
 	if((millis() - lastDebounceTime) > msForLongpress && buttonState == HIGH){
-		Serial.println("LONG PRESS");
+		Serial.print("LONG PRESS");
+		Serial.println(longPressDirection);
+		longPressIsInAction = true;
 	}
 
   // save the reading. Next time through the loop, it'll be the lastButtonState:
@@ -823,6 +846,10 @@ void loop() {
 
 	if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
+
+		if(longPressIsInAction){
+			light.dim(longPressDirection);
+		}
 
     light.update(currentMillis);
   }
