@@ -77,7 +77,10 @@
 				</div>
 			</div>
 		</div>
-		<button onclick="set()" id="sendBtn">send</button>
+		<button onclick="set()" id="sendBtn">update</button>
+		<div id="snackbar">
+			<p id="snackbarText"></p>
+		</div>
 	</body>
 	<style>
 		* {
@@ -94,6 +97,7 @@
 		:root {
 			--bg: #1c1c1c;
 			--grey: #aaaaaa;
+			--red: #ff4d4d;
 			--radius: 3px;
 			--margin: 10px;
 			--border: 1px dashed var(--grey);
@@ -274,6 +278,23 @@
 			font-weight: bold;
 			margin-top: var(--margin);
 		}
+
+		div#snackbar {
+			position: fixed;
+			bottom: 0;
+			width: calc(100% - 2 * var(--margin));
+			padding: var(--margin);
+			background-color: white;
+			border-radius: var(--radius);
+			transition: all 0.5s;
+			transform: translateY(0px);
+			opacity: 0;
+			pointer-events: none;
+		}
+		p#snackbarText {
+			color: black;
+			font-size: var(--small);
+		}
 	</style>
 	<script>
 		let data = {
@@ -289,6 +310,7 @@
 				},
 			],
 		};
+		let hasChanges = false;
 		function onOff() {
 			if (data.on) {
 				data.on = false;
@@ -296,9 +318,11 @@
 				data.on = true;
 			}
 			set();
+			render();
 		}
 		function toggleRestart() {
 			data.restart = !data.restart;
+			hasChanges = true;
 			render();
 		}
 		function handleTimeline(el) {
@@ -310,6 +334,7 @@
 						if (data.activeTime == data.times.length) {
 							data.activeTime -= 1;
 						}
+						snackbar("Timestamp deleted");
 					}
 				} else {
 					data.activeTime = parseInt(el.getAttribute("index"));
@@ -318,6 +343,7 @@
 				data.times.push({ time: 5, colors: ["#ffffff"], pattern: "solid" });
 				data.activeTime = data.times.length - 1;
 			}
+			hasChanges = true;
 			render();
 		}
 		function changeTime(type) {
@@ -327,16 +353,22 @@
 				data.times[data.activeTime].time = parseInt(type);
 			}
 			if (data.times[data.activeTime].time < 1) data.times[data.activeTime].time = 1;
+			hasChanges = true;
 			render();
 		}
 		let lastClickedColor = -1;
 		function checkForColorDeletion(event, el, value) {
+			if (data.times[data.activeTime].colors.length == 1) {
+				return;
+			}
 			let index = el.getAttribute("index");
 			if (index === lastClickedColor) {
 				event.preventDefault();
 				if (window.confirm("Delete the color?")) {
 					data.times[data.activeTime].colors.splice(index, 1);
+					hasChanges = true;
 					render();
+					snackbar("Color deleted");
 				}
 			}
 			lastClickedColor = index;
@@ -350,6 +382,7 @@
 				data.activeColor = data.times[data.activeTime].colors.length;
 				data.times[data.activeTime].colors.push("#ffffff");
 			}
+			hasChanges = true;
 			render();
 		}
 		function buildStyle(colors) {
@@ -367,6 +400,7 @@
 		}
 		function handlePattern(pattern) {
 			data.times[data.activeTime].pattern = pattern;
+			hasChanges = true;
 			render();
 		}
 		function render() {
@@ -378,6 +412,8 @@
 			} else {
 				restartIndicator.style.opacity = 0.2;
 			}
+			document.querySelector("#btn_on").innerText = data.on ? "ON" : "OFF";
+			document.querySelector("#sendBtn").style.opacity = hasChanges ? 1 : 0.5;
 			toDel.forEach((el, i) => {
 				el.remove();
 			});
@@ -414,24 +450,64 @@
 			});
 		}
 		render();
-		function set() {
+		async function set() {
+			if (!hasChanges) {
+				return;
+			}
 			try {
-				fetch("/set", {
+				let res = await fetch("/set", {
 					method: "POST",
 					body: JSON.stringify(data),
 				});
+				if (res.ok) {
+					hasChanges = false;
+					render();
+					snackbar("Updated");
+				} else {
+					snackbar("Error while updating, reload and try again.", true);
+				}
 			} catch (e) {
-				window.alert(e);
+				snackbar("Error", true);
+				console.error(e);
 			}
 		}
 		async function getData() {
 			try {
 				let res = await fetch("/state");
-				let js = await res.json();
-				console.log(js);
+				if (res.ok) {
+					let serialized = await res.json();
+					console.log(serialized);
+					if (serialized) {
+						data = serialized;
+						render();
+					}
+				} else {
+					console.error("Couldn't get state", res);
+					snackbar("Couldn't get state, restart lamp and try again", true);
+				}
 			} catch (e) {
-				window.alert(e);
+				console.error(e);
+				snackbar("Error", true);
 			}
+		}
+		getData();
+
+		function snackbar(msg, isError = false) {
+			let elem = document.querySelector("#snackbar");
+			let txt = document.querySelector("#snackbarText");
+			txt.innerText = msg;
+
+			elem.style.backgroundColor = isError ? "var(--red)" : "white";
+
+			elem.style.transform = "translateY(calc(var(--margin) * -1))";
+			elem.style.opacity = 1;
+			elem.style.pointerEvents = "all";
+
+			setTimeout(() => {
+				elem.style.transform = "translateY(0px)";
+				elem.style.opacity = 0;
+				elem.style.pointerEvents = "none";
+			}, 1500);
 		}
 	</script>
 </html>
