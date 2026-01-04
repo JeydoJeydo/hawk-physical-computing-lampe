@@ -16,11 +16,10 @@
  #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
 #endif
 
-#define LED_PIN 12
-#define LED_COUNT 97
-//#define BRIGHTNESS 255
+const int LED_PIN = 12;
+const int LED_COUNT = 97;
 
-const int MAX_DIM = 150;
+const int MAX_DIM = 150; // 150 instead of 255 is used to work around the yellow ting issue of the top leds
 const int MIN_DIM = 5;
 const int DIM_SPEED = 2;
 
@@ -568,7 +567,7 @@ class Light {
 		unsigned long timeSinceDataWasSet = 0;
 		unsigned long timeCurrentTimelineIsStarted = 0;
 		int currentTimeIndex = 0;
-		int brightness = 255;
+		int brightness = MAX_DIM;
 
 		const int led_pattern[10][12] = {
 			{-1, -1, 15, 14, 13, 12, 11, 10, 9, 8, 7, -1},
@@ -591,9 +590,7 @@ class Light {
 			currentTimeIndex = 0;
 		}
 		void toggleOnOff(){
-			//setSolid("#ffffff");
 			data["on"] = !data["on"];
-			//strip.show();
 		}
 		void dim(bool dimDirection = true){
 			if(dimDirection){
@@ -764,11 +761,6 @@ unsigned long previousMillis = 0;
 const unsigned long interval = 50;  // ms between LED updates
 
 
-
-
-
-
-//int onOffButtonState = 0;
 int buttonState;            // the current reading from the input pin
 int lastButtonState = LOW;  // the previous reading from the input pin
 bool longPressIsInAction = false;
@@ -781,40 +773,15 @@ unsigned long debounceDelay = 50;    // the debounce time; increase if the outpu
 
 const int msForLongpress = 500;
 
-
-
-
-
 void loop() {
-	/*
-	onOffButtonState = digitalRead(onOffButtonPin);
-	Serial.println(onOffButtonState);
-	*/
-
-
-
-	// read the state of the switch into a local variable:
   int reading = digitalRead(onOffButtonPin);
-
-  // check to see if you just pressed the button
-  // (i.e. the input went from LOW to HIGH), and you've waited long enough
-  // since the last press to ignore any noise:
-
-  // If the switch changed, due to noise or pressing:
   if (reading != lastButtonState) {
-    // reset the debouncing timer
     lastDebounceTime = millis();
   }
 
   if ((millis() - lastDebounceTime) > debounceDelay) {
-    // whatever the reading is at, it's been there for longer than the debounce
-    // delay, so take it as the actual current state:
-
-    // if the button state has changed:
     if (reading != buttonState) {
       buttonState = reading;
-
-      // only toggle the LED if the new button state is HIGH
       if (buttonState == LOW && !longPressIsInAction) {
 				light.toggleOnOff();
       }else if(buttonState == LOW && longPressIsInAction){
@@ -823,24 +790,10 @@ void loop() {
 			}
     }
   }
-
-  // set the LED:
-  //digitalWrite(ledPin, ledState);
-	Serial.println(buttonState);
-
 	if((millis() - lastDebounceTime) > msForLongpress && buttonState == HIGH){
-		Serial.print("LONG PRESS");
-		Serial.println(longPressDirection);
 		longPressIsInAction = true;
 	}
-
-  // save the reading. Next time through the loop, it'll be the lastButtonState:
   lastButtonState = reading;
-
-
-
-
-
 
 	unsigned long currentMillis = millis();
 
