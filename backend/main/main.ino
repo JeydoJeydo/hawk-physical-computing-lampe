@@ -351,6 +351,7 @@ const char page[] PROGMEM = R"rawliteral(
 			} else {
 				data.on = true;
 			}
+			hasChanges = true;
 			set();
 			render();
 		}
