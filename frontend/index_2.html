@@ -7,14 +7,14 @@
 	</head>
 	<body>
 		<div id="header">
-			<button id="power" class="btn-active" title="power">
+			<button id="power" class="btn-active keep" title="power">
 				<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
 					<path
 						d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-84 31.5-156.5T197-763l56 56q-44 44-68.5 102T160-480q0 134 93 227t227 93q134 0 227-93t93-227q0-67-24.5-125T707-707l56-56q54 54 85.5 126.5T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm-40-360v-440h80v440h-80Z"
 					/>
 				</svg>
 			</button>
-			<button id="visualize" class="btn-active" onclick="toggleVisualize()">
+			<button id="visualize" class="btn-active keep" onclick="toggleVisualize()">
 				<svg
 					id="icon-visualize-shown"
 					xmlns="http://www.w3.org/2000/svg"
@@ -45,7 +45,7 @@
 		<div id="timeline">
 			<p class="font-header color-white">Timeline</p>
 			<div id="timeline-inner">
-				<button class="time-entry clone">
+				<button class="time-entry clone" onclick="focusTimeEntry(this)">
 					<div class="time-entry-text">
 						<p class="time-entry-time font-header">1</p>
 						<p class="time-entry-unit font-small">min</p>
@@ -62,9 +62,9 @@
 			<div class="widget">
 				<p class="widget-header">Color Type</p>
 				<div class="widget-body simple-select">
-					<button class="btn-active">Solid</button>
-					<button class="btn-inactive">Gradient</button>
-					<button class="btn-inactive">Draw</button>
+					<button class="btn-active remove-active type-solid" onclick="changeType('solid')">Solid</button>
+					<button class="btn-inactive type-gradient" onclick="changeType('gradient')">Gradient</button>
+					<button class="btn-inactive type-draw" onclick="changeType('draw')">Draw</button>
 				</div>
 			</div>
 			<div class="color-widget">
@@ -75,16 +75,16 @@
 			<div class="widget">
 				<p class="widget-header">Duration</p>
 				<div class="widget-body duration-widget">
-					<button class="btn-filled">
+					<button class="btn-filled" onclick="changeDuration(-1)">
 						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
 							<path d="M200-440v-80h560v80H200Z" />
 						</svg>
 					</button>
 					<div class="duration-middle">
-						<input type="number" id="time-teller" onchange="changeTime(this.value)" min="0" max="10000" value="10" />
-						<p>min</p>
+						<input type="number" id="duration-teller" onchange="changeDuration(this.value)" min="0" max="10000" value="10" />
+						<p id="duration-unit">min</p>
 					</div>
-					<button class="btn-filled">
+					<button class="btn-filled" onclick="changeDuration(1)">
 						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
 							<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
 						</svg>
@@ -94,9 +94,9 @@
 			<div class="widget">
 				<p class="widget-header">Duration type</p>
 				<div class="widget-body simple-select">
-					<button class="btn-active">Seconds</button>
-					<button class="btn-inactive">Minutes</button>
-					<button class="btn-inactive">Hours</button>
+					<button class="btn-active remove-active duration-s" onclick="changeUnit('s')">Seconds</button>
+					<button class="btn-inactive duration-min" onclick="changeUnit('min')">Minutes</button>
+					<button class="btn-inactive duration-h" onclick="changeUnit('h')">Hours</button>
 				</div>
 			</div>
 			<div class="widget-halfed">
@@ -234,6 +234,10 @@
 		}
 		.color-white {
 			color: var(--white);
+		}
+
+		.bold {
+			font-weight: 600;
 		}
 		.btn-active,
 		.btn-inactive,
@@ -597,36 +601,89 @@
 			activeColor: 0,
 			times: [
 				{
-					time: 90,
+					time: 13,
+					unit: "min",
 					colors: ["#ffffff"],
-					pattern: "waves",
+					type: "solid",
 				},
 			],
 		};
+
+		function focusTimeEntry(elem) {
+			if (elem == undefined) {
+				data.activeTime = data.times.length - 1;
+				return;
+			}
+			let indexOfClickedEntry = elem.getAttribute("index");
+			data.activeTime = parseInt(indexOfClickedEntry);
+			render();
+		}
 
 		function addTimeEntry(indexToAddAfter) {
 			if (indexToAddAfter == undefined) {
 				indexToAddAfter = data.times.length;
 			}
-			data.times.splice(indexToAddAfter, 0, { time: 1, colors: ["#ffffff"], pattern: "waves" });
+			data.times.splice(indexToAddAfter, 0, { time: 1, unit: "min", colors: ["#ffffff"], type: "solid" });
+			focusTimeEntry();
 			render();
-			console.log(data);
+		}
+
+		function changeType(type) {
+			data.times[data.activeTime].type = type;
+			render();
+		}
+
+		function changeDuration(type) {
+			if (type == 1 || type == -1) {
+				data.times[data.activeTime].time += 1 * type;
+			} else {
+				data.times[data.activeTime].time = parseInt(type);
+			}
+			if (data.times[data.activeTime].time < 1) data.times[data.activeTime].time = 1;
+			hasChanges = true;
+			render();
+		}
+
+		function changeUnit(unit = "min") {
+			data.times[data.activeTime].unit = unit;
+			render();
 		}
 
 		function render() {
 			let timelineParent = document.querySelector("#timeline-inner");
 			let toDelete = document.querySelectorAll(".delete-on-rerender");
+			let buttonsToReset = document.querySelectorAll(".btn-active");
 			toDelete.forEach((el, i) => {
 				el.remove();
+			});
+			buttonsToReset.forEach((el) => {
+				if (!el.classList.contains("keep")) {
+					el.classList.remove("btn-active");
+					el.classList.add("btn-inactive");
+				}
 			});
 			data.times.forEach((timeEntry, i) => {
 				let clonedEntry = timelineParent.querySelector(".time-entry.clone").cloneNode(true);
 				clonedEntry.classList.remove("clone");
 				clonedEntry.classList.add("delete-on-rerender");
+				clonedEntry.style.backgroundColor = timeEntry.colors[0];
 				clonedEntry.style.width = `calc(1rem + var(--margin) + ${timeEntry.time} * var(--margin))`;
 				clonedEntry.querySelector(".time-entry-time").innerText = timeEntry.time;
+				clonedEntry.querySelector(".time-entry-unit").innerText = timeEntry.unit;
+				clonedEntry.setAttribute("index", i);
+				if (i === data.activeTime) {
+					clonedEntry.querySelector(".time-entry-time").classList.add("bold");
+				}
 				timelineParent.insertBefore(clonedEntry, timelineParent.childNodes[timelineParent.childNodes.length - 2]);
 			});
+			document.querySelector("#duration-teller").value = data.times[data.activeTime].time;
+			document.querySelector("#duration-unit").innerText = data.times[data.activeTime].unit;
+			let foundTypeActiveBtn = document.querySelector(`.type-${data.times[data.activeTime].type}`);
+			foundTypeActiveBtn.classList.remove("btn-inactive");
+			foundTypeActiveBtn.classList.add("btn-active");
+			let foundDurationActiveBtn = document.querySelector(`.duration-${data.times[data.activeTime].unit}`);
+			foundDurationActiveBtn.classList.remove("btn-inactive");
+			foundDurationActiveBtn.classList.add("btn-active");
 		}
 		render();
 		/*
