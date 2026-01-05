@@ -43,7 +43,7 @@
 			</button>
 		</div>
 		<div id="timeline">
-			<p class="font-header color-white">Timeline</p>
+			<p class="font-header color-white">Timeline <span class="font-regular" id="font-header-info">1h</span></p>
 			<div id="timeline-inner">
 				<button class="time-entry clone" onclick="focusTimeEntry(this)">
 					<div class="time-entry-text">
@@ -94,9 +94,9 @@
 			<div class="widget">
 				<p class="widget-header">Duration type</p>
 				<div class="widget-body simple-select">
-					<button class="btn-active remove-active duration-s" onclick="changeUnit('s')">Seconds</button>
-					<button class="btn-inactive duration-min" onclick="changeUnit('min')">Minutes</button>
 					<button class="btn-inactive duration-h" onclick="changeUnit('h')">Hours</button>
+					<button class="btn-inactive duration-min" onclick="changeUnit('min')">Minutes</button>
+					<button class="btn-active remove-active duration-s" onclick="changeUnit('s')">Seconds</button>
 				</div>
 			</div>
 			<div class="widget-halfed">
@@ -228,6 +228,9 @@
 		/*global styles*/
 		.font-header {
 			font-size: var(--header);
+		}
+		.font-regular {
+			font-size: var(--regular);
 		}
 		.font-small {
 			font-size: var(--small);
@@ -668,6 +671,7 @@
 					el.classList.add("btn-inactive");
 				}
 			});
+			let accumulatedSeconds = 0;
 			data.times.forEach((timeEntry, i) => {
 				let clonedEntry = timelineParent.querySelector(".time-entry.clone").cloneNode(true);
 				clonedEntry.classList.remove("clone");
@@ -681,7 +685,20 @@
 					clonedEntry.querySelector(".time-entry-time").classList.add("bold");
 				}
 				timelineParent.insertBefore(clonedEntry, timelineParent.childNodes[timelineParent.childNodes.length - 2]);
+
+				if (timeEntry.unit == "s") {
+					accumulatedSeconds += timeEntry.time;
+				} else if (timeEntry.unit == "min") {
+					accumulatedSeconds += timeEntry.time * 60;
+				} else {
+					accumulatedSeconds += timeEntry.time * 60 * 60;
+				}
 			});
+			let hoursOfTimeline = Math.floor(accumulatedSeconds / 3600);
+			accumulatedSeconds = accumulatedSeconds - hoursOfTimeline * 3600;
+			let minutesOfTimeline = Math.floor(accumulatedSeconds / 60);
+			let secondsOfTimeline = accumulatedSeconds - minutesOfTimeline * 60;
+			document.querySelector("#font-header-info").innerText = `${hoursOfTimeline}h ${minutesOfTimeline}min ${secondsOfTimeline}s`;
 			let foundTypeActiveBtn = document.querySelector(`.type-${data.times[data.activeTime].type}`);
 			foundTypeActiveBtn.classList.remove("btn-inactive");
 			foundTypeActiveBtn.classList.add("btn-active");
