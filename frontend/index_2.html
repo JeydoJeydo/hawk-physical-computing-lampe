@@ -70,7 +70,7 @@
 			<div class="color-widget">
 				<p id="color-widget-header">Color</p>
 				<button onclick="openSolidColorPicker()"></button>
-				<input type="color" id="solidColorInput" />
+				<input type="color" id="solidColorInput" onchange="setColor(this)" />
 			</div>
 			<div class="widget">
 				<p class="widget-header">Duration</p>
@@ -368,6 +368,7 @@
 		#color-widget-header {
 			padding: calc(var(--margin) * 1.5);
 			pointer-events: none;
+			color: var(--black);
 		}
 
 		/*lamp wakeup and sleep*/
@@ -633,6 +634,11 @@
 			render();
 		}
 
+		function setColor(elem) {
+			data.times[data.activeTime].colors[0] = elem.value;
+			render();
+		}
+
 		function changeDuration(type) {
 			if (type == 1 || type == -1) {
 				data.times[data.activeTime].time += 1 * type;
@@ -676,11 +682,12 @@
 				}
 				timelineParent.insertBefore(clonedEntry, timelineParent.childNodes[timelineParent.childNodes.length - 2]);
 			});
-			document.querySelector("#duration-teller").value = data.times[data.activeTime].time;
-			document.querySelector("#duration-unit").innerText = data.times[data.activeTime].unit;
 			let foundTypeActiveBtn = document.querySelector(`.type-${data.times[data.activeTime].type}`);
 			foundTypeActiveBtn.classList.remove("btn-inactive");
 			foundTypeActiveBtn.classList.add("btn-active");
+			document.querySelector(".color-widget").style.backgroundColor = data.times[data.activeTime].colors[0];
+			document.querySelector("#duration-teller").value = data.times[data.activeTime].time;
+			document.querySelector("#duration-unit").innerText = data.times[data.activeTime].unit;
 			let foundDurationActiveBtn = document.querySelector(`.duration-${data.times[data.activeTime].unit}`);
 			foundDurationActiveBtn.classList.remove("btn-inactive");
 			foundDurationActiveBtn.classList.add("btn-active");
