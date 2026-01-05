@@ -47,80 +47,120 @@ const char page[] PROGMEM = R"rawliteral(
 		<title>Lamp control</title>
 	</head>
 	<body>
-		<div id="settings-area">
-			<div id="buttons">
-				<button onclick="getData()">HK</button>
-				<button>ADAPTIVE</button>
-				<button id="btn_on" onclick="onOff()">ON</button>
-			</div>
-			<div class="timeline">
-				<p class="upperc">Timeline</p>
-				<div id="times">
-					<button class="time-entry clone" time="5" onclick="handleTimeline(this)">
-						<div class="time-color"></div>
-						<p class="time-text small">00 min</p>
-						<svg height="10px" viewBox="0 0 10 10">
-							<circle cx="50%" cy="50%" r="40%" fill="white" />
-						</svg>
-					</button>
-					<button class="time-entry-add" onclick="handleTimeline()">
-						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
-							<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-						</svg>
-					</button>
-					<button id="time-entry-restart" onclick="toggleRestart()">
-						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
-							<path
-								d="M314-115q-104-48-169-145T80-479q0-26 2.5-51t8.5-49l-46 27-40-69 191-110 110 190-70 40-54-94q-11 27-16.5 56t-5.5 60q0 97 53 176.5T354-185l-40 70Zm306-485v-80h109q-46-57-111-88.5T480-800q-55 0-104 17t-90 48l-40-70q50-35 109-55t125-20q79 0 151 29.5T760-765v-55h80v220H620ZM594 0 403-110l110-190 69 40-57 98q118-17 196.5-107T800-480q0-11-.5-20.5T797-520h81q1 10 1.5 19.5t.5 20.5q0 135-80.5 241.5T590-95l44 26-40 69Z"
-							/>
-						</svg>
-					</button>
-				</div>
-			</div>
-			<div class="color">
-				<p class="upperc">Shown color(s) per timestamp</p>
-				<div id="colors">
-					<input
-						type="color"
-						onclick="checkForColorDeletion(event, this)"
-						onchange="handleColor(this, this.value)"
-						value="#fffffff"
-						class="color-entry clone"
+		<div id="header">
+			<button id="power" class="btn-active keep" title="power" onclick="toggleOnOff()">
+				<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
+					<path
+						d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-84 31.5-156.5T197-763l56 56q-44 44-68.5 102T160-480q0 134 93 227t227 93q134 0 227-93t93-227q0-67-24.5-125T707-707l56-56q54 54 85.5 126.5T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm-40-360v-440h80v440h-80Z"
 					/>
-					<button class="time-entry-add" onclick="handleColor(this)">
-						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
-							<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-						</svg>
-					</button>
+				</svg>
+			</button>
+			<button id="visualize" class="btn-active keep" onclick="toggleVisualize()">
+				<svg
+					id="icon-visualize-shown"
+					xmlns="http://www.w3.org/2000/svg"
+					height="24px"
+					viewBox="0 -960 960 960"
+					width="24px"
+					fill="var(--white)"
+				>
+					<path
+						d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 220q113 0 207.5-59.5T832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280Z"
+					/>
+				</svg>
+				<svg
+					id="icon-visualize-hidden"
+					xmlns="http://www.w3.org/2000/svg"
+					height="24px"
+					viewBox="0 -960 960 960"
+					width="24px"
+					fill="var(--white)"
+				>
+					<path
+						d="m644-428-58-58q9-47-27-88t-93-32l-58-58q17-8 34.5-12t37.5-4q75 0 127.5 52.5T660-500q0 20-4 37.5T644-428Zm128 126-58-56q38-29 67.5-63.5T832-500q-50-101-143.5-160.5T480-720q-29 0-57 4t-55 12l-62-62q41-17 84-25.5t90-8.5q151 0 269 83.5T920-500q-23 59-60.5 109.5T772-302Zm20 246L624-222q-35 11-70.5 16.5T480-200q-151 0-269-83.5T40-500q21-53 53-98.5t73-81.5L56-792l56-56 736 736-56 56ZM222-624q-29 26-53 57t-41 67q50 101 143.5 160.5T480-280q20 0 39-2.5t39-5.5l-36-38q-11 3-21 4.5t-21 1.5q-75 0-127.5-52.5T300-500q0-11 1.5-21t4.5-21l-84-82Zm319 93Zm-151 75Z"
+					/>
+				</svg>
+				<p>Visualize</p>
+			</button>
+		</div>
+		<div id="timeline">
+			<p class="font-header color-white">Timeline <span class="font-regular" id="font-header-info">1h</span></p>
+			<div id="timeline-inner">
+				<button class="time-entry clone" onclick="focusTimeEntry(this)">
+					<div class="time-entry-text">
+						<p class="time-entry-time font-header">1</p>
+						<p class="time-entry-unit font-small">min</p>
+					</div>
+				</button>
+				<button id="timeline-add" onclick="addTimeEntry()">
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+						<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+					</svg>
+				</button>
+			</div>
+		</div>
+		<div id="widgets">
+			<div class="widget-halfed">
+				<button class="btn-active keep" onclick="deleteTimeEntry(this)">Delete</button>
+				<button class="btn-active keep" onclick="duplicateTimeEntry(this)">Duplicate</button>
+			</div>
+			<div class="widget">
+				<p class="widget-header">Color Type</p>
+				<div class="widget-body simple-select">
+					<button class="btn-active remove-active type-solid" onclick="changeType('solid')">Solid</button>
+					<button class="btn-inactive type-gradient" onclick="changeType('gradient')">Gradient</button>
+					<button class="btn-inactive type-draw" onclick="changeType('draw')">Draw</button>
 				</div>
 			</div>
-			<div class="pattern">
-				<p class="upperc">Patterns the colors are shown in</p>
-				<div id="patterns">
-					<button class="pattern-waves" pattern="waves" onclick="handlePattern('waves')"></button>
-					<!--<button class="pattern-pulse" pattern="pulse" onclick="handlePattern('pulse')"></button>-->
-				</div>
+			<div class="color-widget">
+				<p id="color-widget-header">Color</p>
+				<button onclick="openSolidColorPicker()"></button>
+				<input type="color" id="solidColorInput" onchange="setColor(this)" />
 			</div>
-			<div id="time">
-				<p class="upperc">Minutes the timestamp is shown</p>
-				<div>
-					<button id="minus" onclick="changeTime(-1)">
+			<div class="widget">
+				<p class="widget-header">Duration</p>
+				<div class="widget-body duration-widget">
+					<button class="btn-filled" onclick="changeDuration(-1)">
 						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
 							<path d="M200-440v-80h560v80H200Z" />
 						</svg>
 					</button>
-					<input type="number" id="time-teller" onchange="changeTime(this.value)" min="0" max="10000" value="10" />
-					<button id="plus" onclick="changeTime(1)">
+					<div class="duration-middle">
+						<input type="number" id="duration-teller" onchange="changeDuration(this.value)" min="0" max="10000" value="10" />
+						<p id="duration-unit">min</p>
+					</div>
+					<button class="btn-filled" onclick="changeDuration(1)">
 						<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
 							<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
 						</svg>
 					</button>
 				</div>
 			</div>
+			<div class="widget">
+				<p class="widget-header">Duration type</p>
+				<div class="widget-body simple-select">
+					<button class="btn-inactive duration-h" onclick="changeUnit('h')">Hours</button>
+					<button class="btn-inactive duration-min" onclick="changeUnit('min')">Minutes</button>
+					<button class="btn-active remove-active duration-s" onclick="changeUnit('s')">Seconds</button>
+				</div>
+			</div>
+			<div class="widget-halfed">
+				<div class="widget">
+					<p class="widget-header">Lamp<br />Wakeup</p>
+					<div class="widget-body">
+						<input type="time" class="lamp-wake wakeup" />
+					</div>
+				</div>
+				<div class="widget">
+					<p class="widget-header">Lamp<br />Sleep</p>
+					<div class="widget-body">
+						<input type="time" class="lamp-wake sleep" />
+					</div>
+				</div>
+			</div>
 		</div>
-		<button onclick="set()" id="sendBtn">update</button>
 		<div id="snackbar">
-			<p id="snackbarText"></p>
+			<p id="snackbar-text" class="color-black">test</p>
 		</div>
 	</body>
 	<style>
@@ -136,208 +176,239 @@ const char page[] PROGMEM = R"rawliteral(
 			font-family: Arial, Helvetica, sans-serif;
 		}
 		:root {
+			--white: #ffffff;
+			--black: #000000;
 			--bg: #1c1c1c;
-			--grey: #aaaaaa;
+			--grey: #575757;
 			--red: #ff4d4d;
-			--radius: 3px;
+			--areaHighlight: #212121;
+
+			--radius: 25px;
 			--margin: 10px;
-			--border: 1px dashed var(--grey);
+
+			--header: 2rem;
 			--regular: 1rem;
-			--small: 0.8rem;
+			--small: 0.7rem;
 		}
 		body {
 			background-color: var(--bg);
 			padding: var(--margin);
 			max-width: 600px;
 			margin: 0 auto;
-			display: flex;
-			flex-direction: column;
-			height: 100dvh;
 		}
 
-		#buttons {
-			display: grid;
-			grid-template-columns: repeat(3, 1fr);
-			grid-template-rows: 1fr;
-			grid-column-gap: 1px;
-			grid-row-gap: 0px;
-			background-color: var(--grey);
-			padding: 0 1px 1px 1px;
+		/*global styles*/
+		.font-header {
+			font-size: var(--header);
 		}
-		#buttons > button {
+		.font-regular {
+			font-size: var(--regular);
+		}
+		.font-small {
+			font-size: var(--small);
+		}
+		.color-white {
+			color: var(--white);
+		}
+		.color-black {
+			color: var(--black);
+		}
+
+		.bold {
+			font-weight: 600;
+		}
+		.btn-active,
+		.btn-inactive,
+		.btn-filled {
+			padding: calc(var(--margin) * 1.5) var(--margin);
+			border-radius: 500px;
+		}
+		.btn-active {
 			background-color: transparent;
+			border: 1px solid var(--white);
+		}
+		.btn-inactive {
+			background-color: transparent;
+			border: 1px solid var(--grey);
+		}
+		.btn-filled {
+			background-color: var(--grey);
 			border: none;
-			background-color: var(--bg);
-			padding: calc(var(--margin) * 2);
-			font-size: var(--small);
 		}
 
-		#settings-area {
-			flex-grow: 1;
-			overflow-y: scroll;
-		}
-
-		.upperc {
-			text-transform: uppercase;
-			font-weight: bold;
-			margin-bottom: var(--margin);
-		}
-		.small {
-			font-size: var(--small);
-		}
-
-		#buttons,
-		.timeline,
-		.color,
-		#time,
-		.pattern {
+		/*header*/
+		#header {
+			display: flex;
+			justify-content: space-between;
 			margin-bottom: calc(var(--margin) * 4);
 		}
-		#times {
-			border-top: 1px solid var(--grey);
-			border-bottom: 1px solid var(--grey);
-			padding-top: var(--margin);
+		#power {
+			aspect-ratio: 1;
+			padding: calc(var(--margin) * 1.5);
+			display: flex;
 		}
-		#times,
-		#colors {
+		#visualize {
 			display: flex;
 			gap: var(--margin);
+			align-items: center;
+			padding: calc(var(--margin) * 1.5);
+		}
+		#icon-visualize-hidden {
+			display: none;
+		}
+
+		/*timeline*/
+		#timeline {
+			margin-bottom: calc(var(--margin) * 4);
+		}
+		#timeline-inner {
+			display: flex;
 			overflow-x: scroll;
 		}
-		#times {
-			padding-bottom: calc(var(--small) + var(--margin) * 2 + 2px);
-		}
 		.time-entry {
-			position: relative;
-			border: none;
-			background-color: transparent;
-			padding: 0;
-		}
-		.time-entry.active svg {
-			display: block;
-		}
-		.time-entry.clone,
-		.color-entry.clone {
-			display: none;
-		}
-		.time-entry > p {
-			text-align: center;
-			position: absolute;
-			width: 100%;
-			white-space: nowrap;
-			overflow: hidden;
-		}
-		.time-entry > svg {
-			display: none;
-			position: absolute;
-			bottom: calc((var(--small) + var(--margin) * 2) * -1);
-			left: 50%;
-			transform: translateX(-50%);
-		}
-		.time-color {
-			width: calc(var(--margin) * 5);
-			height: calc(var(--margin) * 15);
 			background-color: red;
-			border-radius: var(--radius);
-		}
-		#colors > * {
-			width: calc(var(--margin) * 6);
-			height: calc(var(--margin) * 4);
-		}
-		.time-entry-add {
-			background-color: transparent;
-			border: var(--border);
-			width: calc(var(--margin) * 5);
-			border-radius: var(--radius);
-			flex-shrink: 0;
-		}
-		#time-entry-restart {
-			background-color: transparent;
+			padding: var(--margin) 0;
+			border-radius: calc(var(--radius) / 2);
 			border: none;
+			flex-shrink: 0;
+			display: flex;
+		}
+		.time-entry.clone {
+			display: none;
+		}
+		.time-entry-text {
+			position: sticky;
+			left: 0;
+			padding: 0 var(--margin);
+		}
+		.time-entry-text > p {
+			color: var(--black);
+		}
+		#timeline-add {
+			background-color: transparent;
+			border-radius: calc(var(--radius) / 2);
+			border: 1px solid var(--grey);
+			padding: 0 calc(var(--margin) * 2);
 		}
 
-		#time > div {
+		/*widgets*/
+		#widgets {
 			display: flex;
+			flex-direction: column;
+			gap: calc(var(--margin) / 2);
+		}
+		.widget-halfed {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			grid-column-gap: calc(var(--margin) / 2);
+		}
+		.widget {
+			background-color: var(--areaHighlight);
+			padding: calc(var(--margin) * 1.5);
+			border-radius: var(--radius);
+			border: 1px solid var(--grey);
+			min-height: 45vw;
+			display: flex;
+			flex-direction: column;
+		}
+		.widget > .widget-header {
+			flex-grow: 1;
+		}
+
+		.simple-select {
+			display: flex;
+			flex-wrap: wrap;
+		}
+		.simple-select > button {
+			flex-grow: 1;
+		}
+
+		/*color widgets*/
+		.color-widget {
+			background-color: blue;
+			border-radius: var(--radius);
+			min-height: 45vw;
+			position: relative;
+		}
+		.color-widget > button {
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background-color: transparent;
+			border: none;
+		}
+		.color-widget > input {
+			position: absolute;
+			visibility: hidden;
+		}
+		#color-widget-header {
+			padding: calc(var(--margin) * 1.5);
+			pointer-events: none;
+			color: var(--black);
+		}
+
+		/*lamp wakeup and sleep*/
+		.lamp-wake {
+			background-color: transparent;
+			border: none;
+			font-size: var(--header);
+			padding: 0;
+			width: 100%;
+		}
+
+		/*duration*/
+		.duration-widget {
+			display: flex;
+		}
+		.duration-widget > button {
+			aspect-ratio: 1;
+			flex-shrink: 0;
+			padding: calc(var(--margin) * 1.5);
+		}
+		.duration-middle {
+			display: flex;
+			flex-grow: 1;
+			justify-content: center;
 			align-items: center;
 		}
-		#time > div > * {
-			flex-grow: 1;
-			text-align: center;
-			border-radius: var(--radius);
-			height: calc(var(--margin) * 4);
-		}
-		#time button {
+		.duration-middle > input {
+			font-size: var(--header);
 			background-color: transparent;
-			border: var(--border);
-		}
-		#time input {
-			background-color: transparent;
+			width: 4rem;
 			border: none;
-		}
-		.color-entry {
-			appearance: none;
-			background-color: transparent;
-			border: none;
-			padding: 0;
-			border-radius: var(--radius);
-			flex-shrink: 0;
-		}
-		#patterns {
-			display: flex;
-			gap: var(--margin);
-		}
-		#patterns > button {
-			width: calc(var(--margin) * 6);
-			height: calc(var(--margin) * 4);
-			border-radius: var(--radius);
-			border: none;
-			background-color: var(--grey);
-		}
-		#patterns > .focus {
-			border: 3px solid white !important;
-		}
-		.pattern-waves {
-			background: linear-gradient(
-				90deg,
-				rgba(170, 170, 170, 1) 0%,
-				rgba(97, 97, 97, 1) 20%,
-				rgba(170, 170, 170, 1) 40%,
-				rgba(97, 97, 97, 1) 60%,
-				rgba(170, 170, 170, 1) 80%,
-				rgba(97, 97, 97, 1) 100%
-			);
-		}
-		.pattern-pulse {
-		}
-		#sendBtn {
-			width: 100%;
-			background-color: transparent;
-			border: 1px solid #fff;
-			border-radius: var(--radius);
-			height: calc(var(--margin) * 4);
-			text-transform: uppercase;
-			font-weight: bold;
-			margin-top: var(--margin);
 		}
 
-		div#snackbar {
-			position: fixed;
-			bottom: 0;
+		/*snackbar*/
+		#snackbar {
 			width: calc(100% - 2 * var(--margin));
-			padding: var(--margin);
-			background-color: white;
-			border-radius: var(--radius);
-			transition: all 0.5s;
+			background-color: var(--white);
+			position: fixed;
+			bottom: 0px;
 			transform: translateY(0px);
+			border-radius: calc(var(--radius) / 2);
+			padding: var(--margin);
 			opacity: 0;
 			pointer-events: none;
-		}
-		p#snackbarText {
-			color: black;
-			font-size: var(--small);
+			transition: all 0.2s;
 		}
 	</style>
 	<script>
+		function openSolidColorPicker() {
+			document.querySelector("#solidColorInput").click();
+		}
+		let visualizeChanges = true;
+		function toggleVisualize() {
+			visualizeChanges = !visualizeChanges;
+			document.querySelector("#visualize").style.opacity = visualizeChanges ? 1 : 0.3;
+			document.querySelector("#icon-visualize-shown").style.display = visualizeChanges ? "block" : "none";
+			document.querySelector("#icon-visualize-hidden").style.display = visualizeChanges ? "none" : "block";
+
+			if (visualizeChanges) {
+				set();
+			}
+		}
 		let data = {
 			on: false,
 			restart: true,
@@ -345,171 +416,151 @@ const char page[] PROGMEM = R"rawliteral(
 			activeColor: 0,
 			times: [
 				{
-					time: 5,
+					time: 13,
+					unit: "min",
 					colors: ["#ffffff"],
-					pattern: "waves",
+					type: "solid",
 				},
 			],
 		};
-		let hasChanges = false;
-		function onOff() {
-			if (data.on) {
-				data.on = false;
-			} else {
-				data.on = true;
-			}
-			hasChanges = true;
-			set();
+
+		function toggleOnOff() {
+			data.on = !data.on;
 			render();
 		}
-		function toggleRestart() {
-			data.restart = !data.restart;
-			hasChanges = true;
-			render();
-		}
-		function handleTimeline(el) {
-			if (el) {
-				let elI = parseInt(el.getAttribute("index"));
-				if (data.activeTime == elI && data.times.length > 1) {
-					if (window.confirm("Delete the timestamp?")) {
-						data.times.splice(elI, 1);
-						if (data.activeTime == data.times.length) {
-							data.activeTime -= 1;
-						}
-						snackbar("Timestamp deleted");
-					}
-				} else {
-					data.activeTime = parseInt(el.getAttribute("index"));
-				}
-			} else {
-				data.times.push({ time: 5, colors: ["#ffffff"], pattern: "solid" });
+
+		function focusTimeEntry(elem) {
+			if (elem == undefined) {
 				data.activeTime = data.times.length - 1;
+				return;
 			}
-			hasChanges = true;
+			let indexOfClickedEntry = elem.getAttribute("index");
+			data.activeTime = parseInt(indexOfClickedEntry);
 			render();
 		}
-		function changeTime(type) {
+
+		function addTimeEntry(indexToAddAfter, elem) {
+			if (indexToAddAfter == undefined) {
+				indexToAddAfter = data.times.length;
+			}
+			let elemToAdd = { time: 1, unit: "min", colors: ["#ffffff"], type: "solid" };
+			if (elem) {
+				elemToAdd = elem;
+			}
+			data.times.splice(indexToAddAfter, 0, elemToAdd);
+			focusTimeEntry();
+			render();
+		}
+
+		function deleteTimeEntry() {
+			if (data.times.length === 1) return;
+			if (window.confirm("Delete the timestamp?")) {
+				data.times.splice(data.activeTime, 1);
+				data.activeTime -= 1;
+				render();
+			}
+		}
+
+		function duplicateTimeEntry() {
+			let clonedEntry = structuredClone(data.times[data.activeTime]);
+			addTimeEntry(data.activeTime, clonedEntry);
+			render();
+		}
+
+		function changeType(type) {
+			data.times[data.activeTime].type = type;
+			render();
+		}
+
+		function setColor(elem) {
+			data.times[data.activeTime].colors[0] = elem.value;
+			render();
+		}
+
+		function changeDuration(type) {
 			if (type == 1 || type == -1) {
 				data.times[data.activeTime].time += 1 * type;
 			} else {
 				data.times[data.activeTime].time = parseInt(type);
 			}
 			if (data.times[data.activeTime].time < 1) data.times[data.activeTime].time = 1;
-			hasChanges = true;
 			render();
 		}
-		let lastClickedColor = -1;
-		function checkForColorDeletion(event, el, value) {
-			if (data.times[data.activeTime].colors.length == 1) {
-				return;
-			}
-			let index = el.getAttribute("index");
-			if (index === lastClickedColor) {
-				event.preventDefault();
-				if (window.confirm("Delete the color?")) {
-					data.times[data.activeTime].colors.splice(index, 1);
-					hasChanges = true;
-					render();
-					snackbar("Color deleted");
-				}
-			}
-			lastClickedColor = index;
-		}
-		function handleColor(el, color) {
-			console.log(data.activeColor, data.times[data.activeTime]);
-			if (color) {
-				data.activeColor = parseInt(el.getAttribute("index"));
-				data.times[data.activeTime].colors[data.activeColor] = color;
-			} else {
-				data.activeColor = data.times[data.activeTime].colors.length;
-				data.times[data.activeTime].colors.push("#ffffff");
-			}
-			hasChanges = true;
+
+		function changeUnit(unit = "min") {
+			data.times[data.activeTime].unit = unit;
 			render();
 		}
-		function buildStyle(colors) {
-			let c = "linear-gradient(180deg, ";
-			if (colors.length === 1) {
-				return `linear-gradient(0deg, ${colors[0]} 0%, ${colors[0]} 100%)`;
-			}
-			const step = 100 / (colors.length - 1);
-			colors.forEach((co, i) => {
-				const pct = (step * i).toFixed(2);
-				c += `${co} ${pct}%, `;
-			});
-			c = c.replace(/, $/, "") + ")";
-			return c;
-		}
-		function handlePattern(pattern) {
-			data.times[data.activeTime].pattern = pattern;
-			hasChanges = true;
-			render();
-		}
+
 		function render() {
-			let parent = document.querySelector("#times");
-			let toDel = document.querySelectorAll(".delete-on-rerender");
-			let restartIndicator = document.querySelector("#time-entry-restart");
-			if (data.restart) {
-				restartIndicator.style.opacity = 1;
-			} else {
-				restartIndicator.style.opacity = 0.2;
-			}
-			document.querySelector("#btn_on").innerText = data.on ? "ON" : "OFF";
-			document.querySelector("#sendBtn").style.opacity = hasChanges ? 1 : 0.5;
-			toDel.forEach((el, i) => {
+			let timelineParent = document.querySelector("#timeline-inner");
+			let toDelete = document.querySelectorAll(".delete-on-rerender");
+			let buttonsToReset = document.querySelectorAll(".btn-active");
+			toDelete.forEach((el, i) => {
 				el.remove();
 			});
-			data.times.forEach((el, i) => {
-				let clone = document.querySelector(".time-entry.clone").cloneNode(true);
-				clone.classList.remove("clone");
-				clone.querySelector(".time-text").innerText = el.time + " min";
-				let cStyler = clone.querySelector(".time-color").style;
-				cStyler.background = buildStyle(el.colors);
-				cStyler.width = `calc(${el.time} * var(--margin))`;
-				clone.setAttribute("index", i);
-				if (data.activeTime == i) {
-					clone.classList.add("active");
-					document.querySelector("#time-teller").value = el.time;
-					let cParent = document.querySelector("#colors");
-					el.colors.forEach((col, cI) => {
-						let cClone = document.querySelector(".color-entry.clone").cloneNode(true);
-						cClone.classList.remove("clone");
-						cClone.value = col;
-						cClone.classList.add("delete-on-rerender");
-						cClone.setAttribute("index", cI);
-						cParent.insertBefore(cClone, cParent.childNodes[cParent.childNodes.length - 2]);
-					});
-					document.querySelector(".pattern").style.display = el.colors.length == 1 ? "none" : "block";
-					document.querySelectorAll("[pattern]").forEach((pat) => {
-						pat.classList.remove("focus");
-						if (pat.getAttribute("pattern") == el.pattern) {
-							pat.classList.add("focus");
-						}
-					});
+			buttonsToReset.forEach((el) => {
+				if (!el.classList.contains("keep")) {
+					el.classList.remove("btn-active");
+					el.classList.add("btn-inactive");
 				}
-				clone.classList.add("delete-on-rerender");
-				parent.insertBefore(clone, parent.childNodes[parent.childNodes.length - 4]);
 			});
+			let accumulatedSeconds = 0;
+			data.times.forEach((timeEntry, i) => {
+				let clonedEntry = timelineParent.querySelector(".time-entry.clone").cloneNode(true);
+				clonedEntry.classList.remove("clone");
+				clonedEntry.classList.add("delete-on-rerender");
+				clonedEntry.style.backgroundColor = timeEntry.colors[0];
+				clonedEntry.style.width = `calc(1rem + var(--margin) + ${timeEntry.time} * var(--margin))`;
+				clonedEntry.querySelector(".time-entry-time").innerText = timeEntry.time;
+				clonedEntry.querySelector(".time-entry-unit").innerText = timeEntry.unit;
+				clonedEntry.setAttribute("index", i);
+				if (i === data.activeTime) {
+					clonedEntry.querySelector(".time-entry-time").classList.add("bold");
+				}
+				timelineParent.insertBefore(clonedEntry, timelineParent.childNodes[timelineParent.childNodes.length - 2]);
+
+				if (timeEntry.unit == "s") {
+					accumulatedSeconds += timeEntry.time;
+				} else if (timeEntry.unit == "min") {
+					accumulatedSeconds += timeEntry.time * 60;
+				} else {
+					accumulatedSeconds += timeEntry.time * 60 * 60;
+				}
+			});
+			document.querySelector("#power").style.opacity = data.on ? 1 : 0.3;
+			let hoursOfTimeline = Math.floor(accumulatedSeconds / 3600);
+			accumulatedSeconds = accumulatedSeconds - hoursOfTimeline * 3600;
+			let minutesOfTimeline = Math.floor(accumulatedSeconds / 60);
+			let secondsOfTimeline = accumulatedSeconds - minutesOfTimeline * 60;
+			document.querySelector("#font-header-info").innerText = `${hoursOfTimeline}h ${minutesOfTimeline}min ${secondsOfTimeline}s`;
+			let foundTypeActiveBtn = document.querySelector(`.type-${data.times[data.activeTime].type}`);
+			foundTypeActiveBtn.classList.remove("btn-inactive");
+			foundTypeActiveBtn.classList.add("btn-active");
+			document.querySelector(".color-widget").style.backgroundColor = data.times[data.activeTime].colors[0];
+			document.querySelector("#duration-teller").value = data.times[data.activeTime].time;
+			document.querySelector("#duration-unit").innerText = data.times[data.activeTime].unit;
+			let foundDurationActiveBtn = document.querySelector(`.duration-${data.times[data.activeTime].unit}`);
+			foundDurationActiveBtn.classList.remove("btn-inactive");
+			foundDurationActiveBtn.classList.add("btn-active");
+
+			if (visualizeChanges) {
+				set();
+			}
 		}
 		render();
+
 		async function set() {
-			if (!hasChanges) {
-				return;
-			}
 			try {
 				let res = await fetch("/set", {
 					method: "POST",
 					body: JSON.stringify(data),
 				});
-				if (res.ok) {
-					hasChanges = false;
-					render();
-					snackbar("Updated");
-				} else {
+				if (!res.ok) {
 					snackbar("Error while updating, reload and try again.", true);
 				}
 			} catch (e) {
-				snackbar("Error", true);
+				snackbar("Error while uploading data to lamp.", true);
 				console.error(e);
 			}
 		}
@@ -518,38 +569,40 @@ const char page[] PROGMEM = R"rawliteral(
 				let res = await fetch("/state");
 				if (res.ok) {
 					let serialized = await res.json();
-					console.log(serialized);
 					if (serialized) {
 						data = serialized;
 						render();
 					}
 				} else {
 					console.error("Couldn't get state", res);
-					snackbar("Couldn't get state, restart lamp and try again", true);
+					snackbar("Couldn't get state, restart lamp and try again.", true);
 				}
 			} catch (e) {
 				console.error(e);
-				snackbar("Error", true);
+				snackbar("Error while getting data from lamp.", true);
 			}
 		}
 		getData();
 
 		function snackbar(msg, isError = false) {
 			let elem = document.querySelector("#snackbar");
-			let txt = document.querySelector("#snackbarText");
+			let txt = document.querySelector("#snackbar-text");
 			txt.innerText = msg;
 
-			elem.style.backgroundColor = isError ? "var(--red)" : "white";
+			elem.style.backgroundColor = isError ? "var(--red)" : "var(--white)";
 
 			elem.style.transform = "translateY(calc(var(--margin) * -1))";
 			elem.style.opacity = 1;
 			elem.style.pointerEvents = "all";
 
-			setTimeout(() => {
-				elem.style.transform = "translateY(0px)";
-				elem.style.opacity = 0;
-				elem.style.pointerEvents = "none";
-			}, 1500);
+			setTimeout(
+				() => {
+					elem.style.transform = "translateY(0px)";
+					elem.style.opacity = 0;
+					elem.style.pointerEvents = "none";
+				},
+				isError ? 5000 : 1500
+			);
 		}
 	</script>
 </html>
@@ -690,8 +743,9 @@ class Light {
 			data["activeTime"] = 0;
 			data["activeColor"] = 0;
 			data["times"][0]["time"] = 5;
+			data["times"][0]["unit"] = "min";
 			data["times"][0]["colors"][0] = "#ffffff";
-			data["times"][0]["pattern"] = "waves";
+			data["times"][0]["type"] = "solid";
     }
 };
 
