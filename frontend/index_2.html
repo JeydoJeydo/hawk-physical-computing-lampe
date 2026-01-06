@@ -395,7 +395,7 @@
 			}
 			let indexOfClickedEntry = elem.getAttribute("index");
 			data.activeTime = parseInt(indexOfClickedEntry);
-			render();
+			render(true);
 		}
 
 		function addTimeEntry(indexToAddAfter, elem) {
@@ -415,7 +415,9 @@
 			if (data.times.length === 1) return;
 			if (window.confirm("Delete the timestamp?")) {
 				data.times.splice(data.activeTime, 1);
-				data.activeTime -= 1;
+				if (data.activeTime > 0) {
+					data.activeTime -= 1;
+				}
 				render();
 			}
 		}
@@ -451,7 +453,7 @@
 			render();
 		}
 
-		function render() {
+		function render(blockLampUpdate = false) {
 			let timelineParent = document.querySelector("#timeline-inner");
 			let toDelete = document.querySelectorAll(".delete-on-rerender");
 			let buttonsToReset = document.querySelectorAll(".btn-active");
@@ -503,7 +505,7 @@
 			foundDurationActiveBtn.classList.remove("btn-inactive");
 			foundDurationActiveBtn.classList.add("btn-active");
 
-			if (visualizeChanges) {
+			if (visualizeChanges && !blockLampUpdate) {
 				set();
 			}
 		}
@@ -517,6 +519,8 @@
 				});
 				if (!res.ok) {
 					snackbar("Error while updating, reload and try again.", true);
+				} else {
+					snackbar("updated");
 				}
 			} catch (e) {
 				snackbar("Error while uploading data to lamp.", true);

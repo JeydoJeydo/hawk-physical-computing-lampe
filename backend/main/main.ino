@@ -436,7 +436,7 @@ const char page[] PROGMEM = R"rawliteral(
 			}
 			let indexOfClickedEntry = elem.getAttribute("index");
 			data.activeTime = parseInt(indexOfClickedEntry);
-			render();
+			render(true);
 		}
 
 		function addTimeEntry(indexToAddAfter, elem) {
@@ -456,7 +456,9 @@ const char page[] PROGMEM = R"rawliteral(
 			if (data.times.length === 1) return;
 			if (window.confirm("Delete the timestamp?")) {
 				data.times.splice(data.activeTime, 1);
-				data.activeTime -= 1;
+				if (data.activeTime > 0) {
+					data.activeTime -= 1;
+				}
 				render();
 			}
 		}
@@ -492,7 +494,7 @@ const char page[] PROGMEM = R"rawliteral(
 			render();
 		}
 
-		function render() {
+		function render(blockLampUpdate = false) {
 			let timelineParent = document.querySelector("#timeline-inner");
 			let toDelete = document.querySelectorAll(".delete-on-rerender");
 			let buttonsToReset = document.querySelectorAll(".btn-active");
@@ -544,7 +546,7 @@ const char page[] PROGMEM = R"rawliteral(
 			foundDurationActiveBtn.classList.remove("btn-inactive");
 			foundDurationActiveBtn.classList.add("btn-active");
 
-			if (visualizeChanges) {
+			if (visualizeChanges && !blockLampUpdate) {
 				set();
 			}
 		}
@@ -558,6 +560,8 @@ const char page[] PROGMEM = R"rawliteral(
 				});
 				if (!res.ok) {
 					snackbar("Error while updating, reload and try again.", true);
+				}else{
+					snackbar("updated");
 				}
 			} catch (e) {
 				snackbar("Error while uploading data to lamp.", true);
@@ -606,7 +610,7 @@ const char page[] PROGMEM = R"rawliteral(
 		}
 	</script>
 </html>
-  )rawliteral";
+)rawliteral";
 void handleRoot() {
   server.send(200, "text/html", page);
 }
@@ -674,20 +678,24 @@ class Light {
 			}
 
 			JsonObject currentTimeObject = data["times"][currentTimeIndex];
+			unsigned long initTime = currentTimeObject["time"];
+			const char* initTimeUnit = data["times"][0]["unit"] | "min";
+			unsigned long secondsTimeIsDisplayedOnTimeline = convertTimeToSeconds(initTimeUnit, initTime);
 
-			int secondsTimeIsDisplayedOnTimeline = currentTimeObject["time"];
 			if(currentTimeIndex > 0){
 				for(int i = 0; i < currentTimeIndex; i++){
-					int accumulatedTime = data["times"][i]["time"] | 0;
+					unsigned long time = data["times"][i]["time"] | 0;
+					const char* timeUnit = data["times"][i]["unit"] | "min";
+					unsigned long accumulatedTime = convertTimeToSeconds(timeUnit, time);
 					secondsTimeIsDisplayedOnTimeline += accumulatedTime;
 				}
 			}
 
-			const char* currentColor = currentTimeObject["colors"][0] | "";
+			const char* currentColor = currentTimeObject["colors"][0] | "#ffffff";
 
-			if(currentUpdateMs >= timeCurrentTimelineIsStarted + (secondsTimeIsDisplayedOnTimeline * 1000)){
+			if(currentUpdateMs >= timeCurrentTimelineIsStarted + (secondsTimeIsDisplayedOnTimeline * 1000)){ // multiply by thousand to convert s to ms
 				bool restartAfterTimelineEnd = data["restart"];
-				if(currentTimeIndex < data["times"].size() && data["times"].size() > 1){
+				if(currentTimeIndex < data["times"].size() - 1 && data["times"].size() > 1){
 					currentTimeIndex += 1;
 				}else{
 					if(restartAfterTimelineEnd){
@@ -705,10 +713,22 @@ class Light {
 				strip.show();
 				return;
 			}
+			Serial.println(currentColor);
 			setSolid(currentColor);
 
 			strip.show();
 		}
+
+		unsigned long convertTimeToSeconds(const char* timeUnit, unsigned long time){
+			unsigned long accumulatedTime = time;
+			if(strcmp(timeUnit, "min") == 0){
+				accumulatedTime = time * 60;
+			}else if(strcmp(timeUnit, "h") == 0){
+				accumulatedTime = time * 60 * 60;
+			}
+			return accumulatedTime;
+		}
+
     void hexToRGB(const String &hex, int &r, int &g, int &b) {
       String h = hex;
       if (h.startsWith("#")) h = h.substring(1);
