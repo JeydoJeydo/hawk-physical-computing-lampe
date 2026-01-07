@@ -1,12 +1,10 @@
-// NeoPixel test program showing use of the WHITE channel for RGBW
-// pixels only (won't look correct on regular RGB NeoPixel strips).
-
+#include <ArduinoJson.h>
 #include <Adafruit_NeoPixel.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
-#include <ESP8266WebServer.h>
+#include <ESPAsyncWebServer.h>
 #include <DNSServer.h>
-#include <ArduinoJson.h>
+
 
 #ifndef APSSID
 #define APSSID "ESPap"
@@ -32,7 +30,8 @@ Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 const char *ssid = APSSID;
 const char *password = APPSK;
 
-ESP8266WebServer server(80);
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
 DNSServer dnsServer;              // <-- Added
 
 const byte DNS_PORT = 53;
@@ -395,6 +394,9 @@ const char page[] PROGMEM = R"rawliteral(
 		}
 	</style>
 	<script>
+		let gateway = `ws://${window.location.hostname}/ws`;
+		let websocket;
+
 		function openSolidColorPicker() {
 			document.querySelector("#solidColorInput").click();
 		}
@@ -406,7 +408,8 @@ const char page[] PROGMEM = R"rawliteral(
 			document.querySelector("#icon-visualize-hidden").style.display = visualizeChanges ? "none" : "block";
 
 			if (visualizeChanges) {
-				set();
+				//set();
+				sendData();
 			}
 		}
 		let data = {
@@ -547,10 +550,49 @@ const char page[] PROGMEM = R"rawliteral(
 			foundDurationActiveBtn.classList.add("btn-active");
 
 			if (visualizeChanges && !blockLampUpdate) {
-				set();
+				//set();
+				sendData();
 			}
 		}
 		render();
+
+		// 1. Initialize the connection
+		function initWebSocket() {
+			console.log("Trying to open a WebSocket connection...");
+			websocket = new WebSocket(gateway);
+
+			websocket.onopen = onOpen;
+			websocket.onclose = onClose;
+			websocket.onmessage = onMessage;
+		}
+
+		function onOpen(event) {
+			console.log("Connection opened");
+			// Once connected, you might want to ask for the current state
+			// websocket.send('getState');
+		}
+
+		function onClose(event) {
+			console.log("Connection closed");
+			// Try to reconnect every 2 seconds
+			setTimeout(initWebSocket, 2000);
+		}
+
+		// 2. Handle incoming data from the ESP8266
+		function onMessage(event) {
+			let data = JSON.parse(event.data);
+			console.log("Received state from ESP:", data);
+		}
+
+		// 3. Send data to the ESP8266
+		function sendData() {
+			if (websocket && websocket.readyState === WebSocket.OPEN) {
+				websocket.send(JSON.stringify(data));
+			}
+		}
+
+		// Start the connection when the page loads
+		window.addEventListener("load", initWebSocket);
 
 		async function set() {
 			try {
@@ -560,7 +602,7 @@ const char page[] PROGMEM = R"rawliteral(
 				});
 				if (!res.ok) {
 					snackbar("Error while updating, reload and try again.", true);
-				}else{
+				} else {
 					snackbar("updated");
 				}
 			} catch (e) {
@@ -611,16 +653,13 @@ const char page[] PROGMEM = R"rawliteral(
 	</script>
 </html>
 )rawliteral";
-void handleRoot() {
-  server.send(200, "text/html", page);
-}
 
 // ------------------- Light Class -------------------
 
 class Light {
 	private:
 		bool hasChanges = true;
-		JsonDocument data;
+		ArduinoJson::JsonDocument data;
 		unsigned long timeSinceDataWasSet = 0;
 		unsigned long timeCurrentTimelineIsStarted = 0;
 		int currentTimeIndex = 0;
@@ -686,7 +725,6 @@ class Light {
 				for(int i = 0; i < currentTimeIndex + 1; i++){ // mabe currentTImeIndex + 1?
 					unsigned long time = data["times"][i]["time"] | 0;
 					const char* timeUnit = data["times"][i]["unit"] | "min";
-					Serial.println(timeUnit);
 					unsigned long accumulatedTime = convertTimeToSeconds(timeUnit, time);
 					secondsTimeIsDisplayedOnTimeline += accumulatedTime;
 				}
@@ -714,7 +752,6 @@ class Light {
 				strip.show();
 				return;
 			}
-			Serial.println(currentColor);
 			setSolid(currentColor);
 
 			strip.show();
@@ -773,6 +810,26 @@ class Light {
 Light light;
 
 //int waves_pattern[][] = {{2, 3, 4, 5, 6}, {1, 32}};
+//String jsonBuffer = ""; // Global temporary storage
+
+void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type,
+  void *arg, uint8_t *data, size_t len) {
+    if (type == WS_EVT_DATA) {
+        AwsFrameInfo *info = (AwsFrameInfo*)arg;
+        if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+            // Data arrived in one piece
+            JsonDocument doc;
+            DeserializationError error = deserializeJson(doc, (char*)data, len);
+            if (!error) {
+                light.setData(doc);
+                // Optional: Tell all clients the new state
+                String response;
+                serializeJson(light.getData(), response);
+                ws.textAll(response); 
+            }
+        }
+    }
+}
 
 // ------------------- Setup -------------------------
 void setup() {
@@ -803,29 +860,51 @@ void setup() {
   Serial.println("DNS server started. All domains -> ESP8266");
 
   // ============= HTTP Routes =============================
-  server.on("/", handleRoot);
-
-  server.on("/set", HTTP_POST, []() {
-    String body = server.arg("plain");
-    Serial.println("POST body: " + body);
-    JsonDocument doc;
-    deserializeJson(doc, body);
-
-		light.setData(doc);
-    
-    server.send(200, "text/plain", "OK");
-  });
-
-	server.on("/state", HTTP_GET, []() {
-		JsonDocument data;
-
-		data = light.getData();
-
-		String response;
-		serializeJson(data, response);
-
-		server.send(200, "application/json", response);
+	server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+		request->send_P(200, "text/html", page);
 	});
+	server.onNotFound([](AsyncWebServerRequest *request){
+		request->redirect("/");
+	});
+
+	/*
+	server.on("/set", HTTP_POST, [](AsyncWebServerRequest *request) {
+		}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+			
+			// 1. If it's the start of the message, clear the buffer
+			if (index == 0) {
+					jsonBuffer = "";
+					jsonBuffer.reserve(total); // Optimization: pre-allocate memory
+			}
+
+			// 2. Append the current chunk to our buffer
+			for (size_t i = 0; i < len; i++) {
+					jsonBuffer += (char)data[i];
+			}
+
+			// 3. Check if we have received everything
+			if (index + len == total) {
+					JsonDocument doc;
+					DeserializationError error = deserializeJson(doc, jsonBuffer);
+
+					if (!error) {
+							light.setData(doc);
+							request->send(200, "text/plain", "OK: Received " + String(total) + " bytes");
+							Serial.println("Full JSON received and parsed.");
+							serializeJsonPretty(doc, Serial);
+					} else {
+							request->send(400, "text/plain", "JSON Error: " + String(error.c_str()));
+							Serial.println("JSON Error after stitching chunks.");
+					}
+					
+					// Clear the buffer to free up RAM immediately
+					jsonBuffer = ""; 
+			}
+	});
+	*/
+
+	ws.onEvent(onEvent);
+	server.addHandler(&ws);
 
   server.begin();
   Serial.println("HTTP server started");
@@ -883,5 +962,5 @@ void loop() {
   }
 
   dnsServer.processNextRequest();   // <-- Required for DNS spoofing
-  server.handleClient();
+  //server.handleClient();
 }

@@ -354,6 +354,9 @@
 		}
 	</style>
 	<script>
+		let gateway = `ws://${window.location.hostname}/ws`;
+		let websocket;
+
 		function openSolidColorPicker() {
 			document.querySelector("#solidColorInput").click();
 		}
@@ -365,7 +368,8 @@
 			document.querySelector("#icon-visualize-hidden").style.display = visualizeChanges ? "none" : "block";
 
 			if (visualizeChanges) {
-				set();
+				//set();
+				sendData();
 			}
 		}
 		let data = {
@@ -506,10 +510,49 @@
 			foundDurationActiveBtn.classList.add("btn-active");
 
 			if (visualizeChanges && !blockLampUpdate) {
-				set();
+				//set();
+				sendData();
 			}
 		}
 		render();
+
+		// 1. Initialize the connection
+		function initWebSocket() {
+			console.log("Trying to open a WebSocket connection...");
+			websocket = new WebSocket(gateway);
+
+			websocket.onopen = onOpen;
+			websocket.onclose = onClose;
+			websocket.onmessage = onMessage;
+		}
+
+		function onOpen(event) {
+			console.log("Connection opened");
+			// Once connected, you might want to ask for the current state
+			// websocket.send('getState');
+		}
+
+		function onClose(event) {
+			console.log("Connection closed");
+			// Try to reconnect every 2 seconds
+			setTimeout(initWebSocket, 2000);
+		}
+
+		// 2. Handle incoming data from the ESP8266
+		function onMessage(event) {
+			let data = JSON.parse(event.data);
+			console.log("Received state from ESP:", data);
+		}
+
+		// 3. Send data to the ESP8266
+		function sendData() {
+			if (websocket && websocket.readyState === WebSocket.OPEN) {
+				websocket.send(JSON.stringify(data));
+			}
+		}
+
+		// Start the connection when the page loads
+		window.addEventListener("load", initWebSocket);
 
 		async function set() {
 			try {
