@@ -720,7 +720,6 @@ class Light {
 			unsigned long initTime = currentTimeObject["time"];
 			const char* initTimeUnit = data["times"][0]["unit"] | "min";
 			unsigned long secondsTimeIsDisplayedOnTimeline = convertTimeToSeconds(initTimeUnit, initTime);
-			// ERROR: last color is not shown correct. Time is not counted right.
 			if(currentTimeIndex > 0){
 				for(int i = 0; i < currentTimeIndex; i++){ // mabe currentTImeIndex + 1?
 					unsigned long time = data["times"][i]["time"] | 0;
@@ -808,26 +807,22 @@ class Light {
 
 Light light;
 
-//int waves_pattern[][] = {{2, 3, 4, 5, 6}, {1, 32}};
-//String jsonBuffer = ""; // Global temporary storage
-
-void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type,
-  void *arg, uint8_t *data, size_t len) {
-    if (type == WS_EVT_DATA) {
-        AwsFrameInfo *info = (AwsFrameInfo*)arg;
-        if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-            // Data arrived in one piece
-            JsonDocument doc;
-            DeserializationError error = deserializeJson(doc, (char*)data, len);
-            if (!error) {
-                light.setData(doc);
-                // Optional: Tell all clients the new state
-                String response;
-                serializeJson(light.getData(), response);
-                ws.textAll(response); 
-            }
-        }
+void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+  if (type == WS_EVT_DATA) {
+    AwsFrameInfo *info = (AwsFrameInfo*)arg;
+    if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+      // Data arrived in one piece
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, (char*)data, len);
+      if (!error) {
+        light.setData(doc);
+        // Optional: Tell all clients the new state
+        String response;
+        serializeJson(light.getData(), response);
+        ws.textAll(response); 
+      }
     }
+  }
 }
 
 // ------------------- Setup -------------------------
@@ -853,10 +848,9 @@ void setup() {
   Serial.print("AP IP address: ");
   Serial.println(myIP);
 
-  // ============= DNS Hijack (Captive Portal) =============
-  // This redirects ALL domains to the ESP8266 IP
+  // ============= Captive Portal =============
   dnsServer.start(DNS_PORT, "*", myIP);
-  Serial.println("DNS server started. All domains -> ESP8266");
+  Serial.println("DNS server started");
 
   // ============= HTTP Routes =============================
 	server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -865,42 +859,6 @@ void setup() {
 	server.onNotFound([](AsyncWebServerRequest *request){
 		request->redirect("/");
 	});
-
-	/*
-	server.on("/set", HTTP_POST, [](AsyncWebServerRequest *request) {
-		}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-			
-			// 1. If it's the start of the message, clear the buffer
-			if (index == 0) {
-					jsonBuffer = "";
-					jsonBuffer.reserve(total); // Optimization: pre-allocate memory
-			}
-
-			// 2. Append the current chunk to our buffer
-			for (size_t i = 0; i < len; i++) {
-					jsonBuffer += (char)data[i];
-			}
-
-			// 3. Check if we have received everything
-			if (index + len == total) {
-					JsonDocument doc;
-					DeserializationError error = deserializeJson(doc, jsonBuffer);
-
-					if (!error) {
-							light.setData(doc);
-							request->send(200, "text/plain", "OK: Received " + String(total) + " bytes");
-							Serial.println("Full JSON received and parsed.");
-							serializeJsonPretty(doc, Serial);
-					} else {
-							request->send(400, "text/plain", "JSON Error: " + String(error.c_str()));
-							Serial.println("JSON Error after stitching chunks.");
-					}
-					
-					// Clear the buffer to free up RAM immediately
-					jsonBuffer = ""; 
-			}
-	});
-	*/
 
 	ws.onEvent(onEvent);
 	server.addHandler(&ws);
@@ -960,6 +918,5 @@ void loop() {
     light.update(currentMillis);
   }
 
-  dnsServer.processNextRequest();   // <-- Required for DNS spoofing
-  //server.handleClient();
+  dnsServer.processNextRequest();
 }
