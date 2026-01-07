@@ -683,9 +683,10 @@ class Light {
 			unsigned long secondsTimeIsDisplayedOnTimeline = convertTimeToSeconds(initTimeUnit, initTime);
 
 			if(currentTimeIndex > 0){
-				for(int i = 0; i < currentTimeIndex; i++){
+				for(int i = 0; i < currentTimeIndex + 1; i++){ // mabe currentTImeIndex + 1?
 					unsigned long time = data["times"][i]["time"] | 0;
 					const char* timeUnit = data["times"][i]["unit"] | "min";
+					Serial.println(timeUnit);
 					unsigned long accumulatedTime = convertTimeToSeconds(timeUnit, time);
 					secondsTimeIsDisplayedOnTimeline += accumulatedTime;
 				}
