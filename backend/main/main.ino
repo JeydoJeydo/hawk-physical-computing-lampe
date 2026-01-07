@@ -720,9 +720,9 @@ class Light {
 			unsigned long initTime = currentTimeObject["time"];
 			const char* initTimeUnit = data["times"][0]["unit"] | "min";
 			unsigned long secondsTimeIsDisplayedOnTimeline = convertTimeToSeconds(initTimeUnit, initTime);
-
+			// ERROR: last color is not shown correct. Time is not counted right.
 			if(currentTimeIndex > 0){
-				for(int i = 0; i < currentTimeIndex + 1; i++){ // mabe currentTImeIndex + 1?
+				for(int i = 0; i < currentTimeIndex; i++){ // mabe currentTImeIndex + 1?
 					unsigned long time = data["times"][i]["time"] | 0;
 					const char* timeUnit = data["times"][i]["unit"] | "min";
 					unsigned long accumulatedTime = convertTimeToSeconds(timeUnit, time);
@@ -737,12 +737,11 @@ class Light {
 				if(currentTimeIndex < data["times"].size() - 1 && data["times"].size() > 1){
 					currentTimeIndex += 1;
 				}else{
-					if(restartAfterTimelineEnd){
-						currentTimeIndex = 0;
-						timeCurrentTimelineIsStarted = millis();
-					}else{
+					if(!restartAfterTimelineEnd){
 						data["on"] = false;
 					}
+					currentTimeIndex = 0;
+					timeCurrentTimelineIsStarted = millis();
 				}
 			}
 
