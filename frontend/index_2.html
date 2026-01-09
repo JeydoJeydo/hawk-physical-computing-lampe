@@ -368,7 +368,6 @@
 			document.querySelector("#icon-visualize-hidden").style.display = visualizeChanges ? "none" : "block";
 
 			if (visualizeChanges) {
-				//set();
 				sendData();
 			}
 		}
@@ -379,10 +378,10 @@
 			activeColor: 0,
 			times: [
 				{
-					time: 13,
-					unit: "min",
-					colors: ["#ffffff"],
-					type: "solid",
+					t: 13,
+					u: "min",
+					c: [16777215], // white in color_int
+					p: "solid",
 				},
 			],
 		};
@@ -406,7 +405,7 @@
 			if (indexToAddAfter == undefined) {
 				indexToAddAfter = data.times.length;
 			}
-			let elemToAdd = { time: 1, unit: "min", colors: ["#ffffff"], type: "solid" };
+			let elemToAdd = { t: 1, u: "min", c: [16777215], p: "solid" };
 			if (elem) {
 				elemToAdd = elem;
 			}
@@ -433,27 +432,28 @@
 		}
 
 		function changeType(type) {
-			data.times[data.activeTime].type = type;
+			data.times[data.activeTime].p = type;
 			render();
 		}
 
 		function setColor(elem) {
-			data.times[data.activeTime].colors[0] = elem.value;
+			const colorInt = parseInt(elem.value.replace("#", ""), 16);
+			data.times[data.activeTime].c[0] = colorInt;
 			render();
 		}
 
 		function changeDuration(type) {
 			if (type == 1 || type == -1) {
-				data.times[data.activeTime].time += 1 * type;
+				data.times[data.activeTime].t += 1 * type;
 			} else {
-				data.times[data.activeTime].time = parseInt(type);
+				data.times[data.activeTime].t = parseInt(type);
 			}
-			if (data.times[data.activeTime].time < 1) data.times[data.activeTime].time = 1;
+			if (data.times[data.activeTime].t < 1) data.times[data.activeTime].t = 1;
 			render();
 		}
 
 		function changeUnit(unit = "min") {
-			data.times[data.activeTime].unit = unit;
+			data.times[data.activeTime].u = unit;
 			render();
 		}
 
@@ -475,10 +475,10 @@
 				let clonedEntry = timelineParent.querySelector(".time-entry.clone").cloneNode(true);
 				clonedEntry.classList.remove("clone");
 				clonedEntry.classList.add("delete-on-rerender");
-				clonedEntry.style.backgroundColor = timeEntry.colors[0];
-				clonedEntry.style.width = `calc(1rem + var(--margin) + ${timeEntry.time} * var(--margin))`;
-				clonedEntry.querySelector(".time-entry-time").innerText = timeEntry.time;
-				clonedEntry.querySelector(".time-entry-unit").innerText = timeEntry.unit;
+				clonedEntry.style.backgroundColor = "#" + timeEntry.c[0].toString(16).padStart(6, "0");
+				clonedEntry.style.width = `calc(1rem + var(--margin) + ${timeEntry.t} * var(--margin))`;
+				clonedEntry.querySelector(".time-entry-time").innerText = timeEntry.t;
+				clonedEntry.querySelector(".time-entry-unit").innerText = timeEntry.u;
 				clonedEntry.setAttribute("index", i);
 				if (i === data.activeTime) {
 					clonedEntry.querySelector(".time-entry-time").classList.add("bold");
@@ -486,11 +486,11 @@
 				timelineParent.insertBefore(clonedEntry, timelineParent.childNodes[timelineParent.childNodes.length - 2]);
 
 				if (timeEntry.unit == "s") {
-					accumulatedSeconds += timeEntry.time;
+					accumulatedSeconds += timeEntry.t;
 				} else if (timeEntry.unit == "min") {
-					accumulatedSeconds += timeEntry.time * 60;
+					accumulatedSeconds += timeEntry.t * 60;
 				} else {
-					accumulatedSeconds += timeEntry.time * 60 * 60;
+					accumulatedSeconds += timeEntry.t * 60 * 60;
 				}
 			});
 			document.querySelector("#power").style.opacity = data.on ? 1 : 0.3;
@@ -499,18 +499,20 @@
 			let minutesOfTimeline = Math.floor(accumulatedSeconds / 60);
 			let secondsOfTimeline = accumulatedSeconds - minutesOfTimeline * 60;
 			document.querySelector("#font-header-info").innerText = `${hoursOfTimeline}h ${minutesOfTimeline}min ${secondsOfTimeline}s`;
-			let foundTypeActiveBtn = document.querySelector(`.type-${data.times[data.activeTime].type}`);
+			let foundTypeActiveBtn = document.querySelector(`.type-${data.times[data.activeTime].p}`);
 			foundTypeActiveBtn.classList.remove("btn-inactive");
 			foundTypeActiveBtn.classList.add("btn-active");
-			document.querySelector(".color-widget").style.backgroundColor = data.times[data.activeTime].colors[0];
-			document.querySelector("#duration-teller").value = data.times[data.activeTime].time;
-			document.querySelector("#duration-unit").innerText = data.times[data.activeTime].unit;
-			let foundDurationActiveBtn = document.querySelector(`.duration-${data.times[data.activeTime].unit}`);
+			let c = data.times[data.activeTime].c[0];
+			console.log("C:", c);
+			document.querySelector(".color-widget").style.backgroundColor = "#" + c.toString(16).padStart(6, "0");
+			document.querySelector("#duration-teller").value = data.times[data.activeTime].t;
+			document.querySelector("#duration-unit").innerText = data.times[data.activeTime].u;
+			let foundDurationActiveBtn = document.querySelector(`.duration-${data.times[data.activeTime].u}`);
 			foundDurationActiveBtn.classList.remove("btn-inactive");
 			foundDurationActiveBtn.classList.add("btn-active");
 
 			if (visualizeChanges && !blockLampUpdate) {
-				//set();
+				console.log("sending data ...");
 				sendData();
 			}
 		}
@@ -528,8 +530,6 @@
 
 		function onOpen(event) {
 			console.log("Connection opened");
-			// Once connected, you might want to ask for the current state
-			// websocket.send('getState');
 		}
 
 		function onClose(event) {
@@ -540,8 +540,10 @@
 
 		// 2. Handle incoming data from the ESP8266
 		function onMessage(event) {
-			let data = JSON.parse(event.data);
+			console.log("unparsed:", event);
+			data = JSON.parse(event.data);
 			console.log("Received state from ESP:", data);
+			render(true);
 		}
 
 		// 3. Send data to the ESP8266
@@ -553,42 +555,6 @@
 
 		// Start the connection when the page loads
 		window.addEventListener("load", initWebSocket);
-
-		async function set() {
-			try {
-				let res = await fetch("/set", {
-					method: "POST",
-					body: JSON.stringify(data),
-				});
-				if (!res.ok) {
-					snackbar("Error while updating, reload and try again.", true);
-				} else {
-					snackbar("updated");
-				}
-			} catch (e) {
-				snackbar("Error while uploading data to lamp.", true);
-				console.error(e);
-			}
-		}
-		async function getData() {
-			try {
-				let res = await fetch("/state");
-				if (res.ok) {
-					let serialized = await res.json();
-					if (serialized) {
-						data = serialized;
-						render();
-					}
-				} else {
-					console.error("Couldn't get state", res);
-					snackbar("Couldn't get state, restart lamp and try again.", true);
-				}
-			} catch (e) {
-				console.error(e);
-				snackbar("Error while getting data from lamp.", true);
-			}
-		}
-		getData();
 
 		function snackbar(msg, isError = false) {
 			let elem = document.querySelector("#snackbar");

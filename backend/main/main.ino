@@ -408,7 +408,6 @@ const char page[] PROGMEM = R"rawliteral(
 			document.querySelector("#icon-visualize-hidden").style.display = visualizeChanges ? "none" : "block";
 
 			if (visualizeChanges) {
-				//set();
 				sendData();
 			}
 		}
@@ -419,10 +418,10 @@ const char page[] PROGMEM = R"rawliteral(
 			activeColor: 0,
 			times: [
 				{
-					time: 13,
-					unit: "min",
-					colors: ["#ffffff"],
-					type: "solid",
+					t: 13,
+					u: "min",
+					c: [16777215], // white in color_int
+					p: "solid",
 				},
 			],
 		};
@@ -446,7 +445,7 @@ const char page[] PROGMEM = R"rawliteral(
 			if (indexToAddAfter == undefined) {
 				indexToAddAfter = data.times.length;
 			}
-			let elemToAdd = { time: 1, unit: "min", colors: ["#ffffff"], type: "solid" };
+			let elemToAdd = { t: 1, u: "min", c: [16777215], p: "solid" };
 			if (elem) {
 				elemToAdd = elem;
 			}
@@ -473,27 +472,28 @@ const char page[] PROGMEM = R"rawliteral(
 		}
 
 		function changeType(type) {
-			data.times[data.activeTime].type = type;
+			data.times[data.activeTime].p = type;
 			render();
 		}
 
 		function setColor(elem) {
-			data.times[data.activeTime].colors[0] = elem.value;
+			const colorInt = parseInt(elem.value.replace("#", ""), 16);
+			data.times[data.activeTime].c[0] = colorInt;
 			render();
 		}
 
 		function changeDuration(type) {
 			if (type == 1 || type == -1) {
-				data.times[data.activeTime].time += 1 * type;
+				data.times[data.activeTime].t += 1 * type;
 			} else {
-				data.times[data.activeTime].time = parseInt(type);
+				data.times[data.activeTime].t = parseInt(type);
 			}
-			if (data.times[data.activeTime].time < 1) data.times[data.activeTime].time = 1;
+			if (data.times[data.activeTime].t < 1) data.times[data.activeTime].t = 1;
 			render();
 		}
 
 		function changeUnit(unit = "min") {
-			data.times[data.activeTime].unit = unit;
+			data.times[data.activeTime].u = unit;
 			render();
 		}
 
@@ -515,10 +515,10 @@ const char page[] PROGMEM = R"rawliteral(
 				let clonedEntry = timelineParent.querySelector(".time-entry.clone").cloneNode(true);
 				clonedEntry.classList.remove("clone");
 				clonedEntry.classList.add("delete-on-rerender");
-				clonedEntry.style.backgroundColor = timeEntry.colors[0];
-				clonedEntry.style.width = `calc(1rem + var(--margin) + ${timeEntry.time} * var(--margin))`;
-				clonedEntry.querySelector(".time-entry-time").innerText = timeEntry.time;
-				clonedEntry.querySelector(".time-entry-unit").innerText = timeEntry.unit;
+				clonedEntry.style.backgroundColor = "#" + timeEntry.c[0].toString(16).padStart(6, "0");
+				clonedEntry.style.width = `calc(1rem + var(--margin) + ${timeEntry.t} * var(--margin))`;
+				clonedEntry.querySelector(".time-entry-time").innerText = timeEntry.t;
+				clonedEntry.querySelector(".time-entry-unit").innerText = timeEntry.u;
 				clonedEntry.setAttribute("index", i);
 				if (i === data.activeTime) {
 					clonedEntry.querySelector(".time-entry-time").classList.add("bold");
@@ -526,11 +526,11 @@ const char page[] PROGMEM = R"rawliteral(
 				timelineParent.insertBefore(clonedEntry, timelineParent.childNodes[timelineParent.childNodes.length - 2]);
 
 				if (timeEntry.unit == "s") {
-					accumulatedSeconds += timeEntry.time;
+					accumulatedSeconds += timeEntry.t;
 				} else if (timeEntry.unit == "min") {
-					accumulatedSeconds += timeEntry.time * 60;
+					accumulatedSeconds += timeEntry.t * 60;
 				} else {
-					accumulatedSeconds += timeEntry.time * 60 * 60;
+					accumulatedSeconds += timeEntry.t * 60 * 60;
 				}
 			});
 			document.querySelector("#power").style.opacity = data.on ? 1 : 0.3;
@@ -539,18 +539,20 @@ const char page[] PROGMEM = R"rawliteral(
 			let minutesOfTimeline = Math.floor(accumulatedSeconds / 60);
 			let secondsOfTimeline = accumulatedSeconds - minutesOfTimeline * 60;
 			document.querySelector("#font-header-info").innerText = `${hoursOfTimeline}h ${minutesOfTimeline}min ${secondsOfTimeline}s`;
-			let foundTypeActiveBtn = document.querySelector(`.type-${data.times[data.activeTime].type}`);
+			let foundTypeActiveBtn = document.querySelector(`.type-${data.times[data.activeTime].p}`);
 			foundTypeActiveBtn.classList.remove("btn-inactive");
 			foundTypeActiveBtn.classList.add("btn-active");
-			document.querySelector(".color-widget").style.backgroundColor = data.times[data.activeTime].colors[0];
-			document.querySelector("#duration-teller").value = data.times[data.activeTime].time;
-			document.querySelector("#duration-unit").innerText = data.times[data.activeTime].unit;
-			let foundDurationActiveBtn = document.querySelector(`.duration-${data.times[data.activeTime].unit}`);
+			let c = data.times[data.activeTime].c[0];
+			console.log("C:", c);
+			document.querySelector(".color-widget").style.backgroundColor = "#" + c.toString(16).padStart(6, "0");
+			document.querySelector("#duration-teller").value = data.times[data.activeTime].t;
+			document.querySelector("#duration-unit").innerText = data.times[data.activeTime].u;
+			let foundDurationActiveBtn = document.querySelector(`.duration-${data.times[data.activeTime].u}`);
 			foundDurationActiveBtn.classList.remove("btn-inactive");
 			foundDurationActiveBtn.classList.add("btn-active");
 
 			if (visualizeChanges && !blockLampUpdate) {
-				//set();
+				console.log("sending data ...");
 				sendData();
 			}
 		}
@@ -568,8 +570,6 @@ const char page[] PROGMEM = R"rawliteral(
 
 		function onOpen(event) {
 			console.log("Connection opened");
-			// Once connected, you might want to ask for the current state
-			// websocket.send('getState');
 		}
 
 		function onClose(event) {
@@ -580,8 +580,10 @@ const char page[] PROGMEM = R"rawliteral(
 
 		// 2. Handle incoming data from the ESP8266
 		function onMessage(event) {
-			let data = JSON.parse(event.data);
+			console.log("unparsed:", event);
+			data = JSON.parse(event.data);
 			console.log("Received state from ESP:", data);
+			render(true);
 		}
 
 		// 3. Send data to the ESP8266
@@ -593,42 +595,6 @@ const char page[] PROGMEM = R"rawliteral(
 
 		// Start the connection when the page loads
 		window.addEventListener("load", initWebSocket);
-
-		async function set() {
-			try {
-				let res = await fetch("/set", {
-					method: "POST",
-					body: JSON.stringify(data),
-				});
-				if (!res.ok) {
-					snackbar("Error while updating, reload and try again.", true);
-				} else {
-					snackbar("updated");
-				}
-			} catch (e) {
-				snackbar("Error while uploading data to lamp.", true);
-				console.error(e);
-			}
-		}
-		async function getData() {
-			try {
-				let res = await fetch("/state");
-				if (res.ok) {
-					let serialized = await res.json();
-					if (serialized) {
-						data = serialized;
-						render();
-					}
-				} else {
-					console.error("Couldn't get state", res);
-					snackbar("Couldn't get state, restart lamp and try again.", true);
-				}
-			} catch (e) {
-				console.error(e);
-				snackbar("Error while getting data from lamp.", true);
-			}
-		}
-		getData();
 
 		function snackbar(msg, isError = false) {
 			let elem = document.querySelector("#snackbar");
@@ -652,14 +618,18 @@ const char page[] PROGMEM = R"rawliteral(
 		}
 	</script>
 </html>
+
 )rawliteral";
 
 // ------------------- Light Class -------------------
 
+JsonDocument globalDoc; 
+char jsonBuffer[2048]; // Adjust size based on your max expected JSON size
+
 class Light {
 	private:
 		bool hasChanges = true;
-		ArduinoJson::JsonDocument data;
+		JsonDocument data;
 		unsigned long timeSinceDataWasSet = 0;
 		unsigned long timeCurrentTimelineIsStarted = 0;
 		int currentTimeIndex = 0;
@@ -678,8 +648,11 @@ class Light {
 			{-1, 21, 22, -1, -1, -1, -1, -1, -1, 0, 1, -1}
 		};
   public:
-		void setData(JsonDocument givenData){
+		void setData(const JsonDocument& givenData){
+			Serial.println("Data was set");
+			data.clear();
 			data = givenData;
+			data.shrinkToFit();
 			hasChanges = true;
 			timeSinceDataWasSet = millis();
 			timeCurrentTimelineIsStarted = millis();
@@ -687,6 +660,9 @@ class Light {
 		}
 		void toggleOnOff(){
 			data["on"] = !data["on"];
+			String response;
+      serializeJson(data, response);
+      ws.textAll(response); 
 		}
 		void dim(bool dimDirection = true){
 			if(dimDirection){
@@ -715,21 +691,23 @@ class Light {
 			if(data.isNull()){
 				return;
 			}
+			Serial.println("update");
 
 			JsonObject currentTimeObject = data["times"][currentTimeIndex];
-			unsigned long initTime = currentTimeObject["time"];
-			const char* initTimeUnit = data["times"][0]["unit"] | "min";
+			unsigned long initTime = currentTimeObject["t"];
+			const char* initTimeUnit = data["times"][0]["u"] | "min";
 			unsigned long secondsTimeIsDisplayedOnTimeline = convertTimeToSeconds(initTimeUnit, initTime);
 			if(currentTimeIndex > 0){
 				for(int i = 0; i < currentTimeIndex; i++){ // mabe currentTImeIndex + 1?
-					unsigned long time = data["times"][i]["time"] | 0;
-					const char* timeUnit = data["times"][i]["unit"] | "min";
+					unsigned long time = data["times"][i]["t"] | 0;
+					const char* timeUnit = data["times"][i]["u"] | "min";
 					unsigned long accumulatedTime = convertTimeToSeconds(timeUnit, time);
 					secondsTimeIsDisplayedOnTimeline += accumulatedTime;
 				}
 			}
 
-			const char* currentColor = currentTimeObject["colors"][0] | "#ffffff";
+			//const char* currentColor = currentTimeObject["colors"][0] | "#ffffff";
+			uint32_t currentColor = data["times"][currentTimeIndex]["c"][0] | 0;
 
 			if(currentUpdateMs >= timeCurrentTimelineIsStarted + (secondsTimeIsDisplayedOnTimeline * 1000)){ // multiply by thousand to convert s to ms
 				bool restartAfterTimelineEnd = data["restart"];
@@ -746,11 +724,13 @@ class Light {
 
 			bool on = data["on"] | false;
 			if(on == false){
-				setSolid("#000000");
+				//setSolid("#000000");
+				strip.fill(0);
 				strip.show();
 				return;
 			}
-			setSolid(currentColor);
+			//setSolid(currentColor);
+			strip.fill(currentColor);
 
 			strip.show();
 		}
@@ -785,7 +765,7 @@ class Light {
       strip.setBrightness(brightness);
     }
 
-		JsonDocument getData(){
+		const JsonDocument& getData(){
 			return data;
 		}
 
@@ -798,28 +778,39 @@ class Light {
 			data["restart"] = true;
 			data["activeTime"] = 0;
 			data["activeColor"] = 0;
-			data["times"][0]["time"] = 5;
-			data["times"][0]["unit"] = "min";
-			data["times"][0]["colors"][0] = "#ffffff";
-			data["times"][0]["type"] = "solid";
+			data["times"][0]["t"] = 5;
+			data["times"][0]["u"] = "min";
+			data["times"][0]["c"][0] = 16777215;
+			data["times"][0]["p"] = "solid";
     }
 };
 
 Light light;
 
+void broadcastState() {
+  size_t len = serializeJson(light.getData(), jsonBuffer);
+  ws.textAll(jsonBuffer, len);
+}
+
+// part of code is from the documentation: https://github.com/ESP32Async/ESPAsyncWebServer/wiki#async-websocket-event
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
   if (type == WS_EVT_DATA) {
     AwsFrameInfo *info = (AwsFrameInfo*)arg;
     if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-      // Data arrived in one piece
-      JsonDocument doc;
-      DeserializationError error = deserializeJson(doc, (char*)data, len);
+      
+      // 1. Clear the global document to reuse its memory
+      globalDoc.clear();
+
+      // 2. Deserialize directly into the global doc
+      DeserializationError error = deserializeJson(globalDoc, (char*)data, len);
+      
       if (!error) {
-        light.setData(doc);
-        // Optional: Tell all clients the new state
-        String response;
-        serializeJson(light.getData(), response);
-        ws.textAll(response); 
+        // 3. Update the light object (Passing by reference is better)
+        light.setData(globalDoc);
+
+        // 4. Broadcast the update WITHOUT creating a temporary String object
+        // This helper function sends the globalDoc to all clients
+        broadcastState();
       }
     }
   }
@@ -916,6 +907,7 @@ void loop() {
 		}
 
     light.update(currentMillis);
+		Serial.println(ESP.getFreeHeap());
   }
 
   dnsServer.processNextRequest();
