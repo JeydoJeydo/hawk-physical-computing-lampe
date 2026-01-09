@@ -419,7 +419,7 @@ const char page[] PROGMEM = R"rawliteral(
 			times: [
 				{
 					t: 13,
-					u: "min",
+					u: 1, // 0 = seconds, 1 = minutes, 2 = hours
 					c: [16777215], // white in color_int
 					p: "solid",
 				},
@@ -445,7 +445,7 @@ const char page[] PROGMEM = R"rawliteral(
 			if (indexToAddAfter == undefined) {
 				indexToAddAfter = data.times.length;
 			}
-			let elemToAdd = { t: 1, u: "min", c: [16777215], p: "solid" };
+			let elemToAdd = { t: 1, u: 1, c: [16777215], p: "solid" };
 			if (elem) {
 				elemToAdd = elem;
 			}
@@ -493,8 +493,28 @@ const char page[] PROGMEM = R"rawliteral(
 		}
 
 		function changeUnit(unit = "min") {
-			data.times[data.activeTime].u = unit;
+			data.times[data.activeTime].u = convertTimeUnit(unit);
 			render();
+		}
+
+		function convertTimeUnit(entry) {
+			if (typeof entry == "string") {
+				if (entry == "s") {
+					return 0;
+				} else if (entry == "min") {
+					return 1;
+				} else {
+					return 2;
+				}
+			} else if (typeof entry == "number") {
+				if (entry == 0) {
+					return "s";
+				} else if (entry == 1) {
+					return "min";
+				} else {
+					return "h";
+				}
+			}
 		}
 
 		function render(blockLampUpdate = false) {
@@ -518,16 +538,16 @@ const char page[] PROGMEM = R"rawliteral(
 				clonedEntry.style.backgroundColor = "#" + timeEntry.c[0].toString(16).padStart(6, "0");
 				clonedEntry.style.width = `calc(1rem + var(--margin) + ${timeEntry.t} * var(--margin))`;
 				clonedEntry.querySelector(".time-entry-time").innerText = timeEntry.t;
-				clonedEntry.querySelector(".time-entry-unit").innerText = timeEntry.u;
+				clonedEntry.querySelector(".time-entry-unit").innerText = convertTimeUnit(timeEntry.u);
 				clonedEntry.setAttribute("index", i);
 				if (i === data.activeTime) {
 					clonedEntry.querySelector(".time-entry-time").classList.add("bold");
 				}
 				timelineParent.insertBefore(clonedEntry, timelineParent.childNodes[timelineParent.childNodes.length - 2]);
 
-				if (timeEntry.unit == "s") {
+				if (timeEntry.unit == 0) {
 					accumulatedSeconds += timeEntry.t;
-				} else if (timeEntry.unit == "min") {
+				} else if (timeEntry.unit == 1) {
 					accumulatedSeconds += timeEntry.t * 60;
 				} else {
 					accumulatedSeconds += timeEntry.t * 60 * 60;
@@ -546,8 +566,8 @@ const char page[] PROGMEM = R"rawliteral(
 			console.log("C:", c);
 			document.querySelector(".color-widget").style.backgroundColor = "#" + c.toString(16).padStart(6, "0");
 			document.querySelector("#duration-teller").value = data.times[data.activeTime].t;
-			document.querySelector("#duration-unit").innerText = data.times[data.activeTime].u;
-			let foundDurationActiveBtn = document.querySelector(`.duration-${data.times[data.activeTime].u}`);
+			document.querySelector("#duration-unit").innerText = convertTimeUnit(data.times[data.activeTime].u);
+			let foundDurationActiveBtn = document.querySelector(`.duration-${convertTimeUnit(data.times[data.activeTime].u)}`);
 			foundDurationActiveBtn.classList.remove("btn-inactive");
 			foundDurationActiveBtn.classList.add("btn-active");
 
@@ -618,7 +638,6 @@ const char page[] PROGMEM = R"rawliteral(
 		}
 	</script>
 </html>
-
 )rawliteral";
 
 // ------------------- Light Class -------------------
@@ -634,6 +653,10 @@ class Light {
 		unsigned long timeCurrentTimelineIsStarted = 0;
 		int currentTimeIndex = 0;
 		int brightness = MAX_DIM;
+
+		unsigned long nextSwitchTime = 0;
+		int lastAppliedIndex = -1;
+		bool lastOnState = false;
 
 		const int led_pattern[10][12] = {
 			{-1, -1, 15, 14, 13, 12, 11, 10, 9, 8, 7, -1},
@@ -657,6 +680,7 @@ class Light {
 			timeSinceDataWasSet = millis();
 			timeCurrentTimelineIsStarted = millis();
 			currentTimeIndex = 0;
+			lastAppliedIndex = -1;
 		}
 		void toggleOnOff(){
 			data["on"] = !data["on"];
@@ -676,90 +700,58 @@ class Light {
 			}
 			strip.setBrightness(brightness);
 		}
-		// Sets the whole lamp to display a color color
-    void setSolid(const char color[]){
-      int r, g, b;
-      hexToRGB(color, r, g, b);
-      strip.fill(strip.Color(r, g, b));
-    }
+
 		void setPattern(const char pattern[]){
 			for(int i = 0; i < 10; i++){
 				strip.setPixelColor(led_pattern[i][4], strip.Color(255, 0, 0));
 			}
 		}
-		void update(unsigned long currentUpdateMs){
-			if(data.isNull()){
-				return;
-			}
+
+		void update(unsigned long currentMillis) {
+			if (data.isNull()) return;
+
 			Serial.println("update");
 
-			JsonObject currentTimeObject = data["times"][currentTimeIndex];
-			unsigned long initTime = currentTimeObject["t"];
-			const char* initTimeUnit = data["times"][0]["u"] | "min";
-			unsigned long secondsTimeIsDisplayedOnTimeline = convertTimeToSeconds(initTimeUnit, initTime);
-			if(currentTimeIndex > 0){
-				for(int i = 0; i < currentTimeIndex; i++){ // mabe currentTImeIndex + 1?
-					unsigned long time = data["times"][i]["t"] | 0;
-					const char* timeUnit = data["times"][i]["u"] | "min";
-					unsigned long accumulatedTime = convertTimeToSeconds(timeUnit, time);
-					secondsTimeIsDisplayedOnTimeline += accumulatedTime;
+			bool isOn = data["on"] | false;
+
+			// 1. REFRESH GUARD: Only update hardware if state changed or index changed
+			if (isOn != lastOnState || currentTimeIndex != lastAppliedIndex) {
+        if (!isOn) {
+            strip.fill(0);
+        } else {
+            // Access color as uint32_t directly from JSON (much faster/lighter than strings)
+            uint32_t currentColor = data["times"][currentTimeIndex]["c"][0] | 0xFFFFFF;
+            strip.fill(currentColor);
+        }
+        strip.show();
+        
+        lastOnState = isOn;
+        lastAppliedIndex = currentTimeIndex;
+
+        // 2. PRE-CALCULATE NEXT SWITCH: Only do the math when the index changes
+        unsigned long duration = data["times"][currentTimeIndex]["t"] | 0;
+        int unit = data["times"][currentTimeIndex]["u"] | 1;               // 'u' for unit (0=s, 1=m, 2=h)
+        
+        unsigned long durationMs = duration * 1000;
+        if (unit == 1) durationMs *= 60;
+        if (unit == 2) durationMs *= 3600;
+
+        nextSwitchTime = currentMillis + durationMs;
+			}
+
+			// 3. SIMPLE TIMER CHECK: No loops, no JSON walking
+			if (isOn && currentMillis >= nextSwitchTime) {
+				if (currentTimeIndex < data["times"].size() - 1) {
+						currentTimeIndex++;
+				} else {
+						if (data["restart"] == 1) {
+								currentTimeIndex = 0;
+						} else {
+								data["on"] = 0;
+						}
 				}
 			}
-
-			//const char* currentColor = currentTimeObject["colors"][0] | "#ffffff";
-			uint32_t currentColor = data["times"][currentTimeIndex]["c"][0] | 0;
-
-			if(currentUpdateMs >= timeCurrentTimelineIsStarted + (secondsTimeIsDisplayedOnTimeline * 1000)){ // multiply by thousand to convert s to ms
-				bool restartAfterTimelineEnd = data["restart"];
-				if(currentTimeIndex < data["times"].size() - 1 && data["times"].size() > 1){
-					currentTimeIndex += 1;
-				}else{
-					if(!restartAfterTimelineEnd){
-						data["on"] = false;
-					}
-					currentTimeIndex = 0;
-					timeCurrentTimelineIsStarted = millis();
-				}
-			}
-
-			bool on = data["on"] | false;
-			if(on == false){
-				//setSolid("#000000");
-				strip.fill(0);
-				strip.show();
-				return;
-			}
-			//setSolid(currentColor);
-			strip.fill(currentColor);
-
-			strip.show();
 		}
-
-		unsigned long convertTimeToSeconds(const char* timeUnit, unsigned long time){
-			unsigned long accumulatedTime = time;
-			if(strcmp(timeUnit, "min") == 0){
-				accumulatedTime = time * 60;
-			}else if(strcmp(timeUnit, "h") == 0){
-				accumulatedTime = time * 60 * 60;
-			}
-			return accumulatedTime;
-		}
-
-    void hexToRGB(const String &hex, int &r, int &g, int &b) {
-      String h = hex;
-      if (h.startsWith("#")) h = h.substring(1);
-      // If shorthand #abc → #aabbcc
-      if (h.length() == 3) {
-        h = String(h[0]) + String(h[0]) +
-            String(h[1]) + String(h[1]) +
-            String(h[2]) + String(h[2]);
-      }
-      // Now h should be 6 chars
-      if (h.length() != 6) return;
-      r = strtol(h.substring(0, 2).c_str(), NULL, 16);
-      g = strtol(h.substring(2, 4).c_str(), NULL, 16);
-      b = strtol(h.substring(4, 6).c_str(), NULL, 16);
-    }
 
     void setBrightness(const int brightness){
       strip.setBrightness(brightness);
@@ -779,7 +771,8 @@ class Light {
 			data["activeTime"] = 0;
 			data["activeColor"] = 0;
 			data["times"][0]["t"] = 5;
-			data["times"][0]["u"] = "min";
+			//data["times"][0]["u"] = "min";
+			data["times"][0]["u"] = 1;
 			data["times"][0]["c"][0] = 16777215;
 			data["times"][0]["p"] = "solid";
     }
