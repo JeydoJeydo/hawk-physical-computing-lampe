@@ -807,7 +807,10 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
         broadcastState();
       }
     }
-  }
+  }else if(type == WS_EVT_CONNECT){
+		size_t len = serializeJson(light.getData(), jsonBuffer);
+		client->text(jsonBuffer, len);
+	}
 }
 
 // ------------------- Setup -------------------------
