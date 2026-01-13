@@ -1,6 +1,6 @@
 #include <ArduinoJson.h>
 #include <Adafruit_NeoPixel.h>
-#include <ESP8266WiFi.h>
+#include <WiFi.h>
 #include <WiFiClient.h>
 #include <ESPAsyncWebServer.h>
 #include <DNSServer.h>
@@ -699,6 +699,7 @@ class Light {
 				}
 			}
 			strip.setBrightness(brightness);
+			strip.show();
 		}
 
 		void setPattern(const char pattern[]){
@@ -859,7 +860,7 @@ const unsigned long interval = 50;  // ms between LED updates
 int buttonState;            // the current reading from the input pin
 int lastButtonState = LOW;  // the previous reading from the input pin
 bool longPressIsInAction = false;
-bool longPressDirection = false; // false = dim / true = brighten
+bool longPressDirection = true; // false = dim / true = brighten
 
 // the following variables are unsigned longs because the time, measured in
 // milliseconds, will quickly become a bigger number than can be stored in an int.
