@@ -14,6 +14,11 @@
  #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
 #endif
 
+
+const int statusLedPinRed = 9;
+const int statusLedPinGreen = 10;
+const int statusLedPinBlue = 11;
+
 const int LED_PIN = 12;
 const int LED_COUNT = 97;
 
@@ -706,7 +711,7 @@ const char page[] PROGMEM = R"rawliteral(
 			console.log(buildLedArray);
 			data.times[data.activeTime].c = buildLedArray;
 
-			if (calculatedIndex !== lastCalculatedIndex && !blockLampUpdate) {
+			if (calculatedIndex !== lastCalculatedIndex && visualizeChanges) {
 				sendData();
 			}
 
@@ -1022,8 +1027,21 @@ class Light {
 			data["times"][0]["p"] = 0;
     }
 };
-
 Light light;
+
+class Status {
+	public:
+		void ok(){
+			digitalWrite(statusLedPinGreen, HIGH);
+			digitalWrite(statusLedPinRed, LOW);
+		}
+		void error(){
+			digitalWrite(statusLedPinGreen, LOW);
+			digitalWrite(statusLedPinRed, HIGH);
+		}
+};
+
+Status status;
 
 void broadcastState() {
   size_t len = serializeJson(light.getData(), jsonBuffer);
@@ -1049,11 +1067,15 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
         // 4. Broadcast the update WITHOUT creating a temporary String object
         // This helper function sends the globalDoc to all clients
         broadcastState();
-      }
+      }else{
+				status.error();
+			}
     }
   }else if(type == WS_EVT_CONNECT){
 		size_t len = serializeJson(light.getData(), jsonBuffer);
 		client->text(jsonBuffer, len);
+	}else if(type == WS_EVT_ERROR){
+		status.error();
 	}
 }
 
@@ -1062,6 +1084,10 @@ void setup() {
   #if defined(__AVR_ATtiny85__) && (F_CPU == 16000000)
     clock_prescale_set(clock_div_1);
   #endif
+
+	pinMode(statusLedPinRed, OUTPUT);
+	pinMode(statusLedPinGreen, OUTPUT);
+	pinMode(statusLedPinBlue, OUTPUT);
 
 	pinMode(onOffButtonPin, INPUT);
 	pinMode(adaptiveToggleButtonPin, INPUT);
@@ -1097,6 +1123,7 @@ void setup() {
 
   server.begin();
   Serial.println("HTTP server started");
+	status.ok();
 }
 
 // ------------------- Loop -----------------------------
