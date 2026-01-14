@@ -499,11 +499,11 @@ const char page[] PROGMEM = R"rawliteral(
 
 		let canvas, ctx;
 		const rects = [
-			{ x: 20, y: 20, width: 60, height: 10 },
+			{ x: 20, y: 70, width: 60, height: 10 }, // top part
 			{ x: 20, y: 35, width: 60, height: 30 }, // big middle part
-			{ x: 20, y: 70, width: 60, height: 10 },
-			{ x: 5, y: 35, width: 10, height: 30 },
-			{ x: 85, y: 35, width: 10, height: 30 },
+			{ x: 20, y: 20, width: 60, height: 10 }, // bottom part
+			{ x: 85, y: 35, width: 10, height: 30 }, // left part
+			{ x: 5, y: 35, width: 10, height: 30 }, // right part
 		];
 
 		function initDrawCanvas() {
@@ -613,7 +613,7 @@ const char page[] PROGMEM = R"rawliteral(
 		}
 
 		// 1
-		let ledIndexes = [
+		let ledIndexesOld = [
 			// top part
 			[
 				[15, 14, 13, 12, 11, 10, 9, 8, 7],
@@ -626,7 +626,69 @@ const char page[] PROGMEM = R"rawliteral(
 				[80, 79, 78, 77, 76, 75, 74, 73],
 				[65, 66, 67, 68, 69, 70, 71, 72],
 				[64, 63, 62, 61, 60, 59, 58, 57],
-				[49, 50, 51, 52, 56, 54, 55, 56],
+				[49, 50, 51, 52, 53, 54, 55, 56],
+			],
+			// bottom part
+			[
+				[-1, 23, 24, 25, 26, 27, 28, 29, 30, 31],
+				[21, 22, -1, -1, -1, -1, -1, -1, 0, 1],
+			],
+			// left part
+			[
+				[16, -1],
+				[17, 45],
+				[-1, 46],
+				[18, 47],
+				[19, 48],
+				[20, -1],
+			],
+			// right part
+			[
+				[-1, 6],
+				[35, 5],
+				[34, -1],
+				[33, 4],
+				[32, 3],
+				[-1, 2],
+			],
+		];
+		let ledIndexes = [
+			// top part (gedreht)
+			[
+				[36, 37, 38, 39, 40, 41, 42, 43, 44],
+				[7, 8, 9, 10, 11, 12, 13, 14, 15],
+			],
+			// middle part (Deckel, gedreht)
+			[
+				[56, 55, 54, 53, 52, 51, 50, 49],
+				[57, 58, 59, 60, 61, 62, 63, 64],
+				[72, 71, 70, 69, 68, 67, 66, 65],
+				[73, 74, 75, 76, 77, 78, 79, 80],
+				[88, 87, 86, 85, 84, 83, 82, 81],
+				[89, 90, 91, 92, 93, 94, 95, 96],
+			],
+			// bottom part (gedreht)
+			[
+				[1, 0, -1, -1, -1, -1, -1, -1, 22, 21],
+				[31, 30, 29, 28, 27, 26, 25, 24, 23, -1],
+			],
+			// left part (gedreht)
+			[
+				[20, -1],
+				[19, 48],
+				[18, 47],
+				[-1, 46],
+				[17, 45],
+				[16, -1],
+			],
+			// right part (gedreht)
+			[
+				[-1, 2],
+				[32, 3],
+				[33, 4],
+				[34, -1],
+				[35, 5],
+				[-1, 6],
 			],
 		];
 		let buildLedArray = Array(96).fill(16777215);
@@ -969,7 +1031,7 @@ class Light {
 			//data["times"][0]["u"] = "min";
 			data["times"][0]["u"] = 1;
 			data["times"][0]["c"][0] = 16777215;
-			data["times"][0]["p"] = "solid";
+			data["times"][0]["p"] = 0;
     }
 };
 
