@@ -586,7 +586,6 @@ const char page[] PROGMEM = R"rawliteral(
 			ctx.stroke();
 
 			calculateDrawedColorArray(x, y);
-			sendData();
 		}
 
 		function stopDraw(event) {
@@ -634,6 +633,7 @@ const char page[] PROGMEM = R"rawliteral(
 		console.log(buildLedArray);
 		let xStep = 0;
 		let yStep = 0;
+		let lastCalculatedIndex = -1;
 		function calculateDrawedColorArray(x, y) {
 			let currentIndex = -1;
 			for (let i = 0; i < rects.length; i++) {
@@ -647,17 +647,20 @@ const char page[] PROGMEM = R"rawliteral(
 					break;
 				}
 			}
-			switch (currentIndex) {
-				case 1:
-					let xLed = Math.floor((x - rects[currentIndex].x_n) / xStep);
-					let yLed = Math.floor((y - rects[currentIndex].y_n) / yStep);
-					let calculatedIndex = ledIndexes[currentIndex][yLed][xLed];
-					buildLedArray[calculatedIndex] = convertToColorInt("#ff0000");
-					break;
-			}
+			if (currentIndex == -1) return;
+
+			let xLed = Math.floor((x - rects[currentIndex].x_n) / xStep);
+			let yLed = Math.floor((y - rects[currentIndex].y_n) / yStep);
+			let calculatedIndex = ledIndexes[currentIndex][yLed][xLed];
+			buildLedArray[calculatedIndex] = convertToColorInt("#ff0000");
 			console.log(buildLedArray);
 			data.times[data.activeTime].c = buildLedArray;
-			sendData();
+
+			if (calculatedIndex !== lastCalculatedIndex) {
+				sendData();
+			}
+
+			lastCalculatedIndex = calculatedIndex;
 		}
 
 		function changeDuration(type) {
@@ -890,12 +893,6 @@ class Light {
 			strip.show();
 		}
 
-		void setPattern(const char pattern[]){
-			for(int i = 0; i < 10; i++){
-				strip.setPixelColor(led_pattern[i][4], strip.Color(255, 0, 0));
-			}
-		}
-
 		void update(unsigned long currentMillis) {
 			if (data.isNull()) return;
 
@@ -909,8 +906,17 @@ class Light {
             strip.fill(0);
         } else {
             // Access color as uint32_t directly from JSON (much faster/lighter than strings)
-            uint32_t currentColor = data["times"][currentTimeIndex]["c"][0] | 0xFFFFFF;
-            strip.fill(currentColor);
+						int colorType = data["times"][currentTimeIndex]["p"];
+						if (colorType == 0){
+							uint32_t currentColor = data["times"][currentTimeIndex]["c"][0] | 0xFFFFFF;
+							strip.fill(currentColor);
+						} else if(colorType == 2){
+							for(int i = 0; i < data["times"][currentTimeIndex]["c"].size(); i++){
+								uint32_t currentColorInArray = data["times"][currentTimeIndex]["c"][i] | 0xFFFFFF;
+								strip.setPixelColor(i, currentColorInArray);
+							}
+						}
+						// TODO: add gradient color type
         }
         strip.show();
         

@@ -546,7 +546,6 @@
 			ctx.stroke();
 
 			calculateDrawedColorArray(x, y);
-			sendData();
 		}
 
 		function stopDraw(event) {
@@ -594,6 +593,7 @@
 		console.log(buildLedArray);
 		let xStep = 0;
 		let yStep = 0;
+		let lastCalculatedIndex = -1;
 		function calculateDrawedColorArray(x, y) {
 			let currentIndex = -1;
 			for (let i = 0; i < rects.length; i++) {
@@ -607,17 +607,20 @@
 					break;
 				}
 			}
-			switch (currentIndex) {
-				case 1:
-					let xLed = Math.floor((x - rects[currentIndex].x_n) / xStep);
-					let yLed = Math.floor((y - rects[currentIndex].y_n) / yStep);
-					let calculatedIndex = ledIndexes[currentIndex][yLed][xLed];
-					buildLedArray[calculatedIndex] = convertToColorInt("#ff0000");
-					break;
-			}
+			if (currentIndex == -1) return;
+
+			let xLed = Math.floor((x - rects[currentIndex].x_n) / xStep);
+			let yLed = Math.floor((y - rects[currentIndex].y_n) / yStep);
+			let calculatedIndex = ledIndexes[currentIndex][yLed][xLed];
+			buildLedArray[calculatedIndex] = convertToColorInt("#ff0000");
 			console.log(buildLedArray);
 			data.times[data.activeTime].c = buildLedArray;
-			sendData();
+
+			if (calculatedIndex !== lastCalculatedIndex) {
+				sendData();
+			}
+
+			lastCalculatedIndex = calculatedIndex;
 		}
 
 		function changeDuration(type) {
