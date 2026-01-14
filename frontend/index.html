@@ -77,8 +77,10 @@
 				<input type="color" id="solidColorInput" onchange="setColor(this.value)" />
 			</div>
 			<div class="color-widget-2">
-				<p id="color-widget-header">Colors</p>
+				<p id="color-widget-header">Drawing</p>
 				<canvas id="color-draw"></canvas>
+				<input type="color" id="drawColorInput" onchange="changeDrawTypeColor(this.value)" />
+				<button id="draw-colorpicker" onclick="openDrawColorPicker()"></button>
 			</div>
 			<div class="widget">
 				<p class="widget-header">Duration</p>
@@ -313,11 +315,28 @@
 		}
 
 		/*color widget draw*/
+		.color-widget-2 {
+			border: 1px solid var(--grey);
+			border-radius: var(--radius);
+		}
+		.color-widget-2 > p {
+			color: var(--white) !important;
+			position: absolute;
+		}
 		#color-draw {
 			width: 100%;
 			aspect-ratio: 1;
-			border: 1px solid var(--grey);
-			border-radius: var(--radius);
+		}
+		#draw-colorpicker {
+			width: calc(var(--margin) * 4);
+			height: calc(var(--margin) * 4);
+			background-color: var(--white);
+			margin: 0 0 var(--margin) var(--margin);
+			border-radius: 100px;
+			border: none;
+		}
+		#drawColorInput {
+			display: none;
 		}
 
 		/*lamp wakeup and sleep*/
@@ -371,6 +390,9 @@
 
 		function openSolidColorPicker() {
 			document.querySelector("#solidColorInput").click();
+		}
+		function openDrawColorPicker() {
+			document.querySelector("#drawColorInput").click();
 		}
 		let visualizeChanges = true;
 		function toggleVisualize() {
@@ -533,7 +555,7 @@
 			event.preventDefault();
 			drawing = true;
 			const { x, y } = getPosition(event);
-			ctx.strokeStyle = "red";
+			ctx.strokeStyle = currentDrawingColor;
 			ctx.beginPath();
 			ctx.moveTo(x, y);
 		}
@@ -572,46 +594,12 @@
 			// Beispiel: canvas.removeEventListener(...)
 		}
 
-		// 1
-		let ledIndexesOld = [
-			// top part
-			[
-				[15, 14, 13, 12, 11, 10, 9, 8, 7],
-				[44, 43, 42, 41, 40, 39, 38, 37, 36],
-			],
-			// middle part
-			[
-				[96, 95, 94, 93, 92, 91, 90, 89],
-				[81, 82, 83, 84, 85, 86, 87, 88],
-				[80, 79, 78, 77, 76, 75, 74, 73],
-				[65, 66, 67, 68, 69, 70, 71, 72],
-				[64, 63, 62, 61, 60, 59, 58, 57],
-				[49, 50, 51, 52, 53, 54, 55, 56],
-			],
-			// bottom part
-			[
-				[-1, 23, 24, 25, 26, 27, 28, 29, 30, 31],
-				[21, 22, -1, -1, -1, -1, -1, -1, 0, 1],
-			],
-			// left part
-			[
-				[16, -1],
-				[17, 45],
-				[-1, 46],
-				[18, 47],
-				[19, 48],
-				[20, -1],
-			],
-			// right part
-			[
-				[-1, 6],
-				[35, 5],
-				[34, -1],
-				[33, 4],
-				[32, 3],
-				[-1, 2],
-			],
-		];
+		let currentDrawingColor = "#ffffff";
+		function changeDrawTypeColor(color) {
+			currentDrawingColor = color;
+			document.querySelector("#draw-colorpicker").style.backgroundColor = color;
+		}
+
 		let ledIndexes = [
 			// top part (gedreht)
 			[
@@ -651,7 +639,7 @@
 				[-1, 6],
 			],
 		];
-		let buildLedArray = Array(96).fill(16777215);
+		let buildLedArray = Array(96).fill(0);
 		console.log(buildLedArray);
 		let xStep = 0;
 		let yStep = 0;
@@ -674,7 +662,7 @@
 			let xLed = Math.floor((x - rects[currentIndex].x_n) / xStep);
 			let yLed = Math.floor((y - rects[currentIndex].y_n) / yStep);
 			let calculatedIndex = ledIndexes[currentIndex][yLed][xLed];
-			buildLedArray[calculatedIndex] = convertToColorInt("#ff0000");
+			buildLedArray[calculatedIndex] = convertToColorInt(currentDrawingColor);
 			console.log(buildLedArray);
 			data.times[data.activeTime].c = buildLedArray;
 
