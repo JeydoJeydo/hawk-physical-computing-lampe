@@ -706,7 +706,7 @@ const char page[] PROGMEM = R"rawliteral(
 			console.log(buildLedArray);
 			data.times[data.activeTime].c = buildLedArray;
 
-			if (calculatedIndex !== lastCalculatedIndex) {
+			if (calculatedIndex !== lastCalculatedIndex && !blockLampUpdate) {
 				sendData();
 			}
 
@@ -963,7 +963,7 @@ class Light {
 						} else if(colorType == 2){
 							for(int i = 0; i < data["times"][currentTimeIndex]["c"].size(); i++){
 								uint32_t currentColorInArray = data["times"][currentTimeIndex]["c"][i] | 0xFFFFFF;
-								strip.setPixelColor(i, currentColorInArray);
+								strip.setPixelColor(i, currentColorInArray); // TODO: update only single pixel values?
 							}
 						}
 						// TODO: add gradient color type

@@ -666,7 +666,7 @@
 			console.log(buildLedArray);
 			data.times[data.activeTime].c = buildLedArray;
 
-			if (calculatedIndex !== lastCalculatedIndex) {
+			if (calculatedIndex !== lastCalculatedIndex && !blockLampUpdate) {
 				sendData();
 			}
 
