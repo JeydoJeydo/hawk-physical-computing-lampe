@@ -14,10 +14,7 @@
  #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
 #endif
 
-
-const int statusLedPinRed = 9;
-const int statusLedPinGreen = 10;
-const int statusLedPinBlue = 11;
+const int statusLedPin = 11;
 
 const int LED_PIN = 12;
 const int LED_COUNT = 97;
@@ -1030,14 +1027,31 @@ class Light {
 Light light;
 
 class Status {
+	private:
+		bool errorStatus = false;
+		int errorStatusIntervalMs = 1000;
+		unsigned long lastErrorStatusMs = 0;
+		int status = 1; // 0 = ok / 1 = error
 	public:
 		void ok(){
-			digitalWrite(statusLedPinGreen, HIGH);
-			digitalWrite(statusLedPinRed, LOW);
+			status = 0;
 		}
 		void error(){
-			digitalWrite(statusLedPinGreen, LOW);
-			digitalWrite(statusLedPinRed, HIGH);
+			status = 1;
+		}
+		void update(unsigned long currentMillis){
+			switch(status){
+				case 0:
+					digitalWrite(statusLedPin, HIGH);
+					break;
+				case 1:
+					if(lastErrorStatusMs + errorStatusIntervalMs < currentMillis){
+						digitalWrite(statusLedPin, errorStatus);
+						errorStatus = !errorStatus;
+						lastErrorStatusMs = millis();
+					}
+					break;
+			}
 		}
 };
 
@@ -1085,9 +1099,7 @@ void setup() {
     clock_prescale_set(clock_div_1);
   #endif
 
-	pinMode(statusLedPinRed, OUTPUT);
-	pinMode(statusLedPinGreen, OUTPUT);
-	pinMode(statusLedPinBlue, OUTPUT);
+	pinMode(statusLedPin, OUTPUT);
 
 	pinMode(onOffButtonPin, INPUT);
 	pinMode(adaptiveToggleButtonPin, INPUT);
@@ -1175,6 +1187,7 @@ void loop() {
 		}
 
     light.update(currentMillis);
+		status.update(currentMillis);
 		Serial.println(ESP.getFreeHeap());
   }
 
