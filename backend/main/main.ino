@@ -106,15 +106,19 @@ const char page[] PROGMEM = R"rawliteral(
 			<div class="widget">
 				<p class="widget-header">Color Type</p>
 				<div class="widget-body simple-select">
-					<button class="btn-active remove-active type-solid" onclick="changeType('solid')">Solid</button>
-					<button class="btn-inactive type-gradient" onclick="changeType('gradient')">Gradient</button>
-					<button class="btn-inactive type-draw" onclick="changeType('draw')">Draw</button>
+					<button class="btn-active remove-active type-0" onclick="changeType(0)">Solid</button>
+					<!--<button class="btn-inactive type-1" onclick="changeType(1)">Gradient</button>-->
+					<button class="btn-inactive type-2" onclick="changeType(2)">Draw</button>
 				</div>
 			</div>
-			<div class="color-widget">
+			<div class="color-widget color-widget-0">
 				<p id="color-widget-header">Color</p>
 				<button onclick="openSolidColorPicker()"></button>
-				<input type="color" id="solidColorInput" onchange="setColor(this)" />
+				<input type="color" id="solidColorInput" onchange="setColor(this.value)" />
+			</div>
+			<div class="color-widget-2">
+				<p id="color-widget-header">Colors</p>
+				<canvas id="color-draw"></canvas>
 			</div>
 			<div class="widget">
 				<p class="widget-header">Duration</p>
@@ -348,6 +352,14 @@ const char page[] PROGMEM = R"rawliteral(
 			color: var(--black);
 		}
 
+		/*color widget draw*/
+		#color-draw {
+			width: 100%;
+			aspect-ratio: 1;
+			border: 1px solid var(--grey);
+			border-radius: var(--radius);
+		}
+
 		/*lamp wakeup and sleep*/
 		.lamp-wake {
 			background-color: transparent;
@@ -421,7 +433,7 @@ const char page[] PROGMEM = R"rawliteral(
 					t: 13,
 					u: 1, // 0 = seconds, 1 = minutes, 2 = hours
 					c: [16777215], // white in color_int
-					p: "solid",
+					p: 0, // 0 = solid / 1 = gradient / 2 = draw
 				},
 			],
 		};
@@ -445,7 +457,7 @@ const char page[] PROGMEM = R"rawliteral(
 			if (indexToAddAfter == undefined) {
 				indexToAddAfter = data.times.length;
 			}
-			let elemToAdd = { t: 1, u: 1, c: [16777215], p: "solid" };
+			let elemToAdd = { t: 1, u: 1, c: [16777215], p: 0 };
 			if (elem) {
 				elemToAdd = elem;
 			}
@@ -476,10 +488,176 @@ const char page[] PROGMEM = R"rawliteral(
 			render();
 		}
 
-		function setColor(elem) {
-			const colorInt = parseInt(elem.value.replace("#", ""), 16);
-			data.times[data.activeTime].c[0] = colorInt;
+		function setColor(color) {
+			data.times[data.activeTime].c[0] = convertToColorInt(color);
 			render();
+		}
+		function convertToColorInt(color) {
+			const colorInt = parseInt(color.replace("#", ""), 16);
+			return colorInt;
+		}
+
+		let canvas, ctx;
+		const rects = [
+			{ x: 20, y: 20, width: 60, height: 10 },
+			{ x: 20, y: 35, width: 60, height: 30 }, // big middle part
+			{ x: 20, y: 70, width: 60, height: 10 },
+			{ x: 5, y: 35, width: 10, height: 30 },
+			{ x: 85, y: 35, width: 10, height: 30 },
+		];
+
+		function initDrawCanvas() {
+			canvas = document.querySelector("#color-draw");
+			ctx = canvas.getContext("2d");
+			ctx.lineWidth = 20;
+			ctx.lineCap = "round";
+			ctx.lineJoin = "round";
+
+			// Dynamische Größe
+			let canvasWidth = canvas.getBoundingClientRect().right - canvas.getBoundingClientRect().left;
+			canvas.width = canvasWidth;
+			canvas.height = canvasWidth;
+
+			// Skalierungsfaktor auf die Canvas-Größe
+			let canvasNormalized = canvas.width / 100;
+			rects.forEach((el) => {
+				el.x_n = canvasNormalized * el.x;
+				el.y_n = canvasNormalized * el.y;
+				el.width_n = canvasNormalized * el.width;
+				el.height_n = canvasNormalized * el.height;
+			});
+
+			// Rechtecke zeichnen
+			ctx.save();
+			ctx.fillStyle = "#575757";
+			rects.forEach((el) => {
+				ctx.fillRect(el.x_n, el.y_n, el.width_n, el.height_n);
+			});
+			ctx.restore();
+
+			// Pfad für Clipping erzeugen
+			ctx.save();
+			ctx.beginPath();
+			rects.forEach((el) => {
+				ctx.rect(el.x_n, el.y_n, el.width_n, el.height_n);
+			});
+			ctx.clip();
+			ctx.lineWidth = 20;
+			ctx.lineCap = "round";
+			ctx.lineJoin = "round";
+
+			initDrawListeners();
+		}
+		initDrawCanvas();
+
+		let drawing = false;
+
+		function getPosition(event) {
+			const rect = canvas.getBoundingClientRect();
+			if (event.touches && event.touches.length > 0) {
+				// Touch-Event
+				return {
+					x: event.touches[0].clientX - rect.left,
+					y: event.touches[0].clientY - rect.top,
+				};
+			} else {
+				// Mouse-Event
+				return {
+					x: event.clientX - rect.left,
+					y: event.clientY - rect.top,
+				};
+			}
+		}
+
+		function beginDraw(event) {
+			event.preventDefault();
+			drawing = true;
+			const { x, y } = getPosition(event);
+			ctx.strokeStyle = "red";
+			ctx.beginPath();
+			ctx.moveTo(x, y);
+		}
+
+		function progressDraw(event) {
+			if (!drawing) return;
+			event.preventDefault();
+			const { x, y } = getPosition(event);
+			ctx.lineTo(x, y);
+			ctx.stroke();
+
+			calculateDrawedColorArray(x, y);
+			sendData();
+		}
+
+		function stopDraw(event) {
+			drawing = false;
+			ctx.closePath();
+			//calculateDrawedColorArray();
+		}
+
+		function initDrawListeners() {
+			canvas.addEventListener("mousedown", beginDraw);
+			canvas.addEventListener("mousemove", progressDraw);
+			canvas.addEventListener("mouseup", stopDraw);
+			canvas.addEventListener("mouseleave", stopDraw);
+
+			// Touch-Support
+			canvas.addEventListener("touchstart", beginDraw, { passive: false });
+			canvas.addEventListener("touchmove", progressDraw, { passive: false });
+			canvas.addEventListener("touchend", stopDraw, { passive: false });
+			canvas.addEventListener("touchcancel", stopDraw, { passive: false });
+		}
+
+		// Optional: zeichnen entfernen, wenn nötig
+		function removeDrawListeners() {
+			// Beispiel: canvas.removeEventListener(...)
+		}
+
+		// 1
+		let ledIndexes = [
+			// top part
+			[
+				[15, 14, 13, 12, 11, 10, 9, 8, 7],
+				[44, 43, 42, 41, 40, 39, 38, 37, 36],
+			],
+			// middle part
+			[
+				[96, 95, 94, 93, 92, 91, 90, 89],
+				[81, 82, 83, 84, 85, 86, 87, 88],
+				[80, 79, 78, 77, 76, 75, 74, 73],
+				[65, 66, 67, 68, 69, 70, 71, 72],
+				[64, 63, 62, 61, 60, 59, 58, 57],
+				[49, 50, 51, 52, 56, 54, 55, 56],
+			],
+		];
+		let buildLedArray = Array(96).fill(16777215);
+		console.log(buildLedArray);
+		let xStep = 0;
+		let yStep = 0;
+		function calculateDrawedColorArray(x, y) {
+			let currentIndex = -1;
+			for (let i = 0; i < rects.length; i++) {
+				let entry = rects[i];
+				// first check which area the cursor is on and skip the remaining
+				if (x >= entry.x_n && x < entry.x_n + entry.width_n && y >= entry.y_n && y < entry.y_n + entry.height_n) {
+					currentIndex = i;
+					// calculate size of led area
+					xStep = entry.width_n / ledIndexes[i][0].length;
+					yStep = entry.height_n / ledIndexes[i].length;
+					break;
+				}
+			}
+			switch (currentIndex) {
+				case 1:
+					let xLed = Math.floor((x - rects[currentIndex].x_n) / xStep);
+					let yLed = Math.floor((y - rects[currentIndex].y_n) / yStep);
+					let calculatedIndex = ledIndexes[currentIndex][yLed][xLed];
+					buildLedArray[calculatedIndex] = convertToColorInt("#ff0000");
+					break;
+			}
+			console.log(buildLedArray);
+			data.times[data.activeTime].c = buildLedArray;
+			sendData();
 		}
 
 		function changeDuration(type) {
@@ -535,7 +713,8 @@ const char page[] PROGMEM = R"rawliteral(
 				let clonedEntry = timelineParent.querySelector(".time-entry.clone").cloneNode(true);
 				clonedEntry.classList.remove("clone");
 				clonedEntry.classList.add("delete-on-rerender");
-				clonedEntry.style.backgroundColor = "#" + timeEntry.c[0].toString(16).padStart(6, "0");
+				let firstColor = timeEntry.c[0] || 16777215;
+				clonedEntry.style.backgroundColor = "#" + firstColor.toString(16).padStart(6, "0");
 				clonedEntry.style.width = `calc(1rem + var(--margin) + ${timeEntry.t} * var(--margin))`;
 				clonedEntry.querySelector(".time-entry-time").innerText = timeEntry.t;
 				clonedEntry.querySelector(".time-entry-unit").innerText = convertTimeUnit(timeEntry.u);
@@ -562,9 +741,18 @@ const char page[] PROGMEM = R"rawliteral(
 			let foundTypeActiveBtn = document.querySelector(`.type-${data.times[data.activeTime].p}`);
 			foundTypeActiveBtn.classList.remove("btn-inactive");
 			foundTypeActiveBtn.classList.add("btn-active");
-			let c = data.times[data.activeTime].c[0];
-			console.log("C:", c);
-			document.querySelector(".color-widget").style.backgroundColor = "#" + c.toString(16).padStart(6, "0");
+
+			// color
+			if (data.times[data.activeTime].p == 0) {
+				let c = data.times[data.activeTime].c[0] || 16777215;
+				document.querySelector(".color-widget").style.backgroundColor = "#" + c.toString(16).padStart(6, "0");
+				document.querySelector(".color-widget-2").style.display = "none";
+				document.querySelector(".color-widget-0").style.display = "block";
+			} else if (data.times[data.activeTime].p == 2) {
+				document.querySelector(".color-widget-2").style.display = "block";
+				document.querySelector(".color-widget-0").style.display = "none";
+			}
+
 			document.querySelector("#duration-teller").value = data.times[data.activeTime].t;
 			document.querySelector("#duration-unit").innerText = convertTimeUnit(data.times[data.activeTime].u);
 			let foundDurationActiveBtn = document.querySelector(`.duration-${convertTimeUnit(data.times[data.activeTime].u)}`);
