@@ -4,7 +4,9 @@
 #include <WiFiClient.h>
 #include <ESPAsyncWebServer.h>
 #include <DNSServer.h>
-
+#include <FS.h>
+#include <SD.h>
+#include <SPI.h>
 
 #ifndef APSSID
 #define APSSID "ESPap"
@@ -13,6 +15,8 @@
 #ifdef __AVR__
  #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
 #endif
+
+// clock pinout https://randomnerdtutorials.com/esp32-s3-devkitc-pinout-guide/
 
 const int statusLedPin = 11;
 
@@ -1135,6 +1139,16 @@ void setup() {
 
   server.begin();
   Serial.println("HTTP server started");
+
+	if(!SD.begin(5)){
+		status.error();
+		return;
+	}
+	uint8_t cardType = SD.cardType();
+	if(cardType == CARD_NONE){
+		status.error();
+		return;
+	}
 	status.ok();
 }
 
