@@ -4,9 +4,7 @@
 #include <WiFiClient.h>
 #include <ESPAsyncWebServer.h>
 #include <DNSServer.h>
-#include <FS.h>
-#include <SD.h>
-#include <SPI.h>
+#include "LittleFS.h"
 
 #ifndef APSSID
 #define APSSID "ESPap"
@@ -17,10 +15,19 @@
 #endif
 
 // clock pinout https://randomnerdtutorials.com/esp32-s3-devkitc-pinout-guide/
+// https://randomnerdtutorials.com/esp32-spi-communication-arduino/#custom-spi-pins
+// better json serializing: https://arduinojson.org/v7/assistant/#/step1
 
-const int statusLedPin = 11;
+/*
+const int SD_MOSI = 35;
+const int SD_MISO = 37;
+const int SCK = 36;
+const int CS = 39;
+*/
 
-const int LED_PIN = 12;
+const int statusLedPin = 4;
+
+const int LED_PIN = 6;
 const int LED_COUNT = 97;
 
 const int MAX_DIM = 150; // 150 instead of 255 is used to work around the yellow ting issue of the top leds
@@ -28,8 +35,8 @@ const int MIN_DIM = 5;
 const int DIM_SPEED = 2;
 
 const int onOffButtonPin = 14;
-const int adaptiveToggleButtonPin = 13;
-const int hotkeyButtonPin = 15;
+const int adaptiveToggleButtonPin = 5;
+const int hotkeyButtonPin = 17; // was 15
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -952,8 +959,6 @@ class Light {
 		void update(unsigned long currentMillis) {
 			if (data.isNull()) return;
 
-			Serial.println("update");
-
 			bool isOn = data["on"] | false;
 
 			// 1. REFRESH GUARD: Only update hardware if state changed or index changed
@@ -1040,7 +1045,7 @@ class Status {
 		void ok(){
 			status = 0;
 		}
-		void error(){
+		void error(char errorMsg[]){
 			status = 1;
 		}
 		void update(unsigned long currentMillis){
@@ -1086,14 +1091,14 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
         // This helper function sends the globalDoc to all clients
         broadcastState();
       }else{
-				status.error();
+				status.error("");
 			}
     }
   }else if(type == WS_EVT_CONNECT){
 		size_t len = serializeJson(light.getData(), jsonBuffer);
 		client->text(jsonBuffer, len);
 	}else if(type == WS_EVT_ERROR){
-		status.error();
+		status.error("");
 	}
 }
 
@@ -1130,6 +1135,9 @@ void setup() {
 	server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
 		request->send_P(200, "text/html", page);
 	});
+	server.on("/preset", HTTP_POST, [](AsyncWebServerRequest *request){
+		request->send_P(200, "text/html", page);
+	});
 	server.onNotFound([](AsyncWebServerRequest *request){
 		request->redirect("/");
 	});
@@ -1140,15 +1148,20 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started");
 
-	if(!SD.begin(5)){
-		status.error();
-		return;
-	}
-	uint8_t cardType = SD.cardType();
-	if(cardType == CARD_NONE){
-		status.error();
-		return;
-	}
+	if(!LittleFS.begin()){
+    Serial.println("An Error has occurred while mounting LittleFS");
+		status.error("An Error has occurred while mounting LittleFS");
+    return;
+  }
+
+	File presetsDir = LittleFS.open("/presets");
+  
+  if (!presetsDir && !presetsDir.isDirectory()) {
+    Serial.println("- Failed to open directory (does it exist?)");
+		status.error("Failed to open preset directory");
+    return;
+  }
+
 	status.ok();
 }
 
@@ -1202,7 +1215,7 @@ void loop() {
 
     light.update(currentMillis);
 		status.update(currentMillis);
-		Serial.println(ESP.getFreeHeap());
+		//Serial.println(ESP.getFreeHeap());
   }
 
   dnsServer.processNextRequest();
