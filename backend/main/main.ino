@@ -1136,7 +1136,7 @@ void setup() {
 		request->send_P(200, "text/html", page);
 	});
 	server.on("/preset", HTTP_POST, [](AsyncWebServerRequest *request){
-		request->send_P(200, "text/html", page);
+		request->send_P(200, "text/html", page); // TODO: save as preset
 	});
 	server.onNotFound([](AsyncWebServerRequest *request){
 		request->redirect("/");
@@ -1148,7 +1148,9 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started");
 
-	if(!LittleFS.begin()){
+	// https://github.com/espressif/arduino-esp32/blob/master/libraries/LittleFS/examples/LITTLEFS_test/LITTLEFS_test.ino
+
+	if(!LittleFS.begin(true)){
     Serial.println("An Error has occurred while mounting LittleFS");
 		status.error("An Error has occurred while mounting LittleFS");
     return;
@@ -1156,10 +1158,27 @@ void setup() {
 
 	File presetsDir = LittleFS.open("/presets");
   
-  if (!presetsDir && !presetsDir.isDirectory()) {
-    Serial.println("- Failed to open directory (does it exist?)");
-		status.error("Failed to open preset directory");
-    return;
+  if (!presetsDir || !presetsDir.isDirectory()) {
+    Serial.println("Failed to open preset directory, try creating it ...");
+		status.error("Failed to open preset directory, try creating it ...");
+
+		if (!LittleFS.mkdir("/presets")) {
+    	Serial.println("Failed to create preset directory");
+			status.error("Failed to create preset directory");
+			return;
+  	}
+  }
+
+	// list presets
+	File file = presetsDir.openNextFile();
+	int fileListCutoff = 0;
+  while (file && fileListCutoff < 50) {
+    Serial.print("  FILE: ");
+    Serial.print(file.name());
+    Serial.print("\tSIZE: ");
+    Serial.println(file.size());
+    file = root.openNextFile();
+		fileListCutoff++;
   }
 
 	status.ok();
