@@ -6,46 +6,64 @@
 		<title>Lamp control</title>
 	</head>
 	<body>
-		<div id="header">
-			<button id="power" class="btn-active keep" title="power" onclick="toggleOnOff()">
+		<div class="header">
+			<div id="header-left">
+				<button id="power" class="btn-active keep" title="power" onclick="toggleOnOff()">
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
+						<path
+							d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-84 31.5-156.5T197-763l56 56q-44 44-68.5 102T160-480q0 134 93 227t227 93q134 0 227-93t93-227q0-67-24.5-125T707-707l56-56q54 54 85.5 126.5T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm-40-360v-440h80v440h-80Z"
+						/>
+					</svg>
+				</button>
+				<button id="visualize" class="btn-active keep" onclick="toggleVisualize()">
+					<svg
+						id="icon-visualize-shown"
+						xmlns="http://www.w3.org/2000/svg"
+						height="24px"
+						viewBox="0 -960 960 960"
+						width="24px"
+						fill="var(--white)"
+					>
+						<path
+							d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 220q113 0 207.5-59.5T832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280Z"
+						/>
+					</svg>
+					<svg
+						id="icon-visualize-hidden"
+						xmlns="http://www.w3.org/2000/svg"
+						height="24px"
+						viewBox="0 -960 960 960"
+						width="24px"
+						fill="var(--white)"
+					>
+						<path
+							d="m644-428-58-58q9-47-27-88t-93-32l-58-58q17-8 34.5-12t37.5-4q75 0 127.5 52.5T660-500q0 20-4 37.5T644-428Zm128 126-58-56q38-29 67.5-63.5T832-500q-50-101-143.5-160.5T480-720q-29 0-57 4t-55 12l-62-62q41-17 84-25.5t90-8.5q151 0 269 83.5T920-500q-23 59-60.5 109.5T772-302Zm20 246L624-222q-35 11-70.5 16.5T480-200q-151 0-269-83.5T40-500q21-53 53-98.5t73-81.5L56-792l56-56 736 736-56 56ZM222-624q-29 26-53 57t-41 67q50 101 143.5 160.5T480-280q20 0 39-2.5t39-5.5l-36-38q-11 3-21 4.5t-21 1.5q-75 0-127.5-52.5T300-500q0-11 1.5-21t4.5-21l-84-82Zm319 93Zm-151 75Z"
+						/>
+					</svg>
+					<p>Visualize</p>
+				</button>
+			</div>
+			<button id="list" class="btn-active keep" onclick="toggleList(true)">
 				<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
 					<path
-						d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-84 31.5-156.5T197-763l56 56q-44 44-68.5 102T160-480q0 134 93 227t227 93q134 0 227-93t93-227q0-67-24.5-125T707-707l56-56q54 54 85.5 126.5T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm-40-360v-440h80v440h-80Z"
+						d="M280-600v-80h560v80H280Zm0 160v-80h560v80H280Zm0 160v-80h560v80H280ZM160-600q-17 0-28.5-11.5T120-640q0-17 11.5-28.5T160-680q17 0 28.5 11.5T200-640q0 17-11.5 28.5T160-600Zm0 160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520q17 0 28.5 11.5T200-480q0 17-11.5 28.5T160-440Zm0 160q-17 0-28.5-11.5T120-320q0-17 11.5-28.5T160-360q17 0 28.5 11.5T200-320q0 17-11.5 28.5T160-280Z"
 					/>
 				</svg>
-			</button>
-			<button id="visualize" class="btn-active keep" onclick="toggleVisualize()">
-				<svg
-					id="icon-visualize-shown"
-					xmlns="http://www.w3.org/2000/svg"
-					height="24px"
-					viewBox="0 -960 960 960"
-					width="24px"
-					fill="var(--white)"
-				>
-					<path
-						d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 220q113 0 207.5-59.5T832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280Z"
-					/>
-				</svg>
-				<svg
-					id="icon-visualize-hidden"
-					xmlns="http://www.w3.org/2000/svg"
-					height="24px"
-					viewBox="0 -960 960 960"
-					width="24px"
-					fill="var(--white)"
-				>
-					<path
-						d="m644-428-58-58q9-47-27-88t-93-32l-58-58q17-8 34.5-12t37.5-4q75 0 127.5 52.5T660-500q0 20-4 37.5T644-428Zm128 126-58-56q38-29 67.5-63.5T832-500q-50-101-143.5-160.5T480-720q-29 0-57 4t-55 12l-62-62q41-17 84-25.5t90-8.5q151 0 269 83.5T920-500q-23 59-60.5 109.5T772-302Zm20 246L624-222q-35 11-70.5 16.5T480-200q-151 0-269-83.5T40-500q21-53 53-98.5t73-81.5L56-792l56-56 736 736-56 56ZM222-624q-29 26-53 57t-41 67q50 101 143.5 160.5T480-280q20 0 39-2.5t39-5.5l-36-38q-11 3-21 4.5t-21 1.5q-75 0-127.5-52.5T300-500q0-11 1.5-21t4.5-21l-84-82Zm319 93Zm-151 75Z"
-					/>
-				</svg>
-				<p>Visualize</p>
 			</button>
 		</div>
 		<div id="timeline">
-			<p class="font-header color-white">Timeline <span class="font-regular" id="font-header-info">1h</span></p>
+			<p class="font-header color-white">Timeline <span class="font-regular font-descriptive" id="font-header-info">1h</span></p>
 			<div id="timeline-inner">
-				<button class="time-entry clone" onclick="focusTimeEntry(this)">
+				<button
+					class="time-entry clone"
+					onclick="focusTimeEntry(this)"
+					ontouchstart="initLongPress()"
+					onmousedown="initLongPress()"
+					ontouchend="cancelLongPress()"
+					onmouseup="cancelLongPress()"
+					ontouchcancel="cancelLongPress()"
+					onmouseleave="cancelLongPress()"
+				>
 					<div class="time-entry-text">
 						<p class="time-entry-time font-header">1</p>
 						<p class="time-entry-unit font-small">min</p>
@@ -59,10 +77,6 @@
 			</div>
 		</div>
 		<div id="widgets">
-			<div class="widget-halfed">
-				<button class="btn-active keep" onclick="deleteTimeEntry(this)">Delete</button>
-				<button class="btn-active keep" onclick="duplicateTimeEntry(this)">Duplicate</button>
-			</div>
 			<div class="widget">
 				<p class="widget-header">Color Type</p>
 				<div class="widget-body simple-select">
@@ -127,6 +141,52 @@
 		<div id="snackbar">
 			<p id="snackbar-text" class="color-black">test</p>
 		</div>
+		<div id="presets-list">
+			<div class="header header-list">
+				<button id="close-list" class="btn-active keep" onclick="toggleList(false)">
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
+						<path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z" />
+					</svg>
+				</button>
+			</div>
+			<p class="font-header color-white">Presets <span id="presets-amount" class="font-regular">0</span></p>
+			<div id="presets">
+				<div class="preset">
+					<div class="preset-left">
+						<p class="preset-title font-semiHeader">This is a Preset test</p>
+						<p class="preset-description font-descriptive">Preset description</p>
+					</div>
+					<div class="preset-right">
+						<button class="preset-more">
+							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
+								<path
+									d="M240-400q-33 0-56.5-23.5T160-480q0-33 23.5-56.5T240-560q33 0 56.5 23.5T320-480q0 33-23.5 56.5T240-400Zm240 0q-33 0-56.5-23.5T400-480q0-33 23.5-56.5T480-560q33 0 56.5 23.5T560-480q0 33-23.5 56.5T480-400Zm240 0q-33 0-56.5-23.5T640-480q0-33 23.5-56.5T720-560q33 0 56.5 23.5T800-480q0 33-23.5 56.5T720-400Z"
+								/>
+							</svg>
+						</button>
+						<button class="preset-play">
+							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
+								<path d="M320-200v-560l440 280-440 280Zm80-280Zm0 134 210-134-210-134v268Z" />
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="timeline-interacter-popup">
+			<div id="timeline-interacter-header">
+				<p>Time entry settings</p>
+				<button id="close-timeline-interacter" onclick="toggleColorEntrySettings(false)">
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
+						<path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z" />
+					</svg>
+				</button>
+			</div>
+			<div id="timeline-interacter-options">
+				<button onclick="deleteTimeEntry()">Delete timeline entry</button>
+				<button onclick="duplicateTimeEntry()">Duplicate timeline entry</button>
+			</div>
+		</div>
 	</body>
 	<style>
 		* {
@@ -148,10 +208,11 @@
 			--red: #ff4d4d;
 			--areaHighlight: #212121;
 
-			--radius: 25px;
+			--radius: 20px;
 			--margin: 10px;
 
 			--header: 2rem;
+			--semiHeader: 1.2rem;
 			--regular: 1rem;
 			--small: 0.7rem;
 		}
@@ -166,11 +227,17 @@
 		.font-header {
 			font-size: var(--header);
 		}
+		.font-semiHeader {
+			font-size: var(--semiHeader);
+		}
 		.font-regular {
 			font-size: var(--regular);
 		}
 		.font-small {
 			font-size: var(--small);
+		}
+		.font-descriptive {
+			opacity: 0.8;
 		}
 		.color-white {
 			color: var(--white);
@@ -202,10 +269,15 @@
 		}
 
 		/*header*/
-		#header {
+		.header {
+			position: relative;
 			display: flex;
 			justify-content: space-between;
 			margin-bottom: calc(var(--margin) * 4);
+		}
+		#header-left {
+			display: flex;
+			gap: calc(var(--margin) / 2);
 		}
 		#power {
 			aspect-ratio: 1;
@@ -220,6 +292,12 @@
 		}
 		#icon-visualize-hidden {
 			display: none;
+		}
+		#list,
+		#close-list {
+			aspect-ratio: 1;
+			padding: calc(var(--margin) * 1.5);
+			display: flex;
 		}
 
 		/*timeline*/
@@ -252,10 +330,49 @@
 		#timeline-add {
 			background-color: transparent;
 			border-radius: calc(var(--radius) / 2);
-			border: 1px solid var(--grey);
+			border: none;
 			padding: 0 calc(var(--margin) * 2);
+			margin-left: calc(var(--margin) / 2);
 		}
 
+		#timeline-interacter-popup {
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			background-color: var(--areaHighlight);
+			border-radius: var(--radius) var(--radius) 0 0;
+			padding: var(--margin);
+			transition: all 0.5s;
+			transform: translateY(100%);
+			opacity: 0;
+		}
+		#timeline-interacter-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+		#timeline-interacter-header > button {
+			background-color: transparent;
+			border: none;
+			margin: 0;
+			padding: calc(var(--margin) / 2);
+		}
+		#timeline-interacter-options {
+			max-height: 50vh;
+			overflow-y: scroll;
+			display: flex;
+			flex-direction: column;
+			gap: calc(var(--margin) / 2);
+			-webkit-box-shadow: 0px 0px 15px 5px var(--black);
+			box-shadow: 0px 0px 15px 5px var(--black);
+		}
+		#timeline-interacter-options > button {
+			background-color: transparent;
+			padding: var(--margin);
+			border-radius: 100px;
+			border: 1px solid var(--grey);
+		}
 		/*widgets*/
 		#widgets {
 			display: flex;
@@ -272,7 +389,7 @@
 			padding: calc(var(--margin) * 1.5);
 			border-radius: var(--radius);
 			border: 1px solid var(--grey);
-			min-height: 45vw;
+			min-height: 40vw;
 			display: flex;
 			flex-direction: column;
 		}
@@ -382,6 +499,53 @@
 			opacity: 0;
 			pointer-events: none;
 			transition: all 0.2s;
+			z-index: 999;
+		}
+
+		/*presets list*/
+		#presets-list {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background-color: var(--bg);
+			padding: var(--margin);
+			overflow-y: scroll;
+			display: none;
+		}
+		.header-list {
+			justify-content: flex-end;
+		}
+		#presets {
+			display: flex;
+			flex-direction: column;
+			gap: calc(var(--margin) / 2);
+		}
+		.preset {
+			background-color: var(--areaHighlight);
+			padding: var(--margin);
+			border-radius: calc(var(--radius) / 2);
+			display: flex;
+			align-items: center;
+		}
+		.preset-left {
+			flex-grow: 1;
+		}
+		.preset-title {
+			margin-bottom: calc(var(--margin) / 2);
+		}
+		.preset-right {
+			display: flex;
+			align-items: center;
+			gap: var(--margin);
+		}
+		.preset-more,
+		.preset-play {
+			background-color: transparent;
+			margin: 0;
+			padding: calc(var(--margin) / 2);
+			border: none;
 		}
 	</style>
 	<script>
@@ -403,6 +567,36 @@
 
 			if (visualizeChanges) {
 				sendData();
+			}
+		}
+		function toggleList(show) {
+			let listView = document.querySelector("#presets-list");
+			let body = document.querySelector("body");
+			if (show) {
+				listView.style.display = "block";
+				body.style.overflow = "hidden";
+			} else {
+				listView.style.display = "none";
+				body.style.overflow = "auto";
+			}
+		}
+		let pressTimer;
+		function initLongPress() {
+			pressTimer = window.setTimeout(() => {
+				toggleColorEntrySettings(true);
+			}, 500);
+		}
+		function cancelLongPress() {
+			clearTimeout(pressTimer);
+		}
+		function toggleColorEntrySettings(show) {
+			let timelineInt = document.querySelector("#timeline-interacter-popup");
+			if (show) {
+				timelineInt.style.transform = "translateY(0%)";
+				timelineInt.style.opacity = 1;
+			} else {
+				timelineInt.style.transform = "translateY(100%)";
+				timelineInt.style.opacity = 0;
 			}
 		}
 		let data = {
