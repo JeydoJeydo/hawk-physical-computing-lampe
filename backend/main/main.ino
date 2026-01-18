@@ -190,12 +190,12 @@ const char page[] PROGMEM = R"rawliteral(
 					</div>
 				</div>
 			</div>
-			<div id="save-preset">
+			<form id="save-preset">
 				<p class="font-header">Save as preset</p>
-				<input type="text" placeholder="Preset title" id="save-preset-title" maxlength="50" />
+				<input type="text" placeholder="Preset title" id="save-preset-title" maxlength="50" required />
 				<textarea placeholder="Preset description" id="save-preset-desc" maxlength="100" rows="5"></textarea>
-				<button onclick="savePreset()">Save as preset</button>
-			</div>
+				<input type="submit" value="Save as preset" id="preset-send" />
+			</form>
 		</div>
 		<div id="snackbar">
 			<p id="snackbar-text" class="color-black">test</p>
@@ -223,7 +223,7 @@ const char page[] PROGMEM = R"rawliteral(
 								/>
 							</svg>
 						</button>
-						<button class="preset-play">
+						<button class="preset-play" onclick="playPreset(this)">
 							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
 								<path d="M320-200v-560l440 280-440 280Zm80-280Zm0 134 210-134-210-134v268Z" />
 							</svg>
@@ -560,7 +560,7 @@ const char page[] PROGMEM = R"rawliteral(
 		#save-preset > .font-header {
 			margin-bottom: var(--margin);
 		}
-		#save-preset > input {
+		#save-preset-title {
 			background-color: transparent;
 			border: none;
 			font-size: var(--semiHeader);
@@ -571,7 +571,7 @@ const char page[] PROGMEM = R"rawliteral(
 			border: none;
 			opacity: 0.8;
 		}
-		#save-preset > button {
+		#preset-send {
 			margin-top: var(--margin);
 			background-color: transparent;
 			padding: calc(var(--margin) * 1.5);
@@ -1065,6 +1065,15 @@ const char page[] PROGMEM = R"rawliteral(
 			foundDurationActiveBtn.classList.remove("btn-inactive");
 			foundDurationActiveBtn.classList.add("btn-active");
 
+			if ("filename" in data) {
+				if ("title" in data) {
+					document.querySelector("#save-preset-title").value = data.title;
+				}
+				if ("desc" in data) {
+					document.querySelector("#save-preset-desc").value = data.desc;
+				}
+			}
+
 			if (visualizeChanges && !blockLampUpdate) {
 				console.log("sending data ...");
 				sendData();
@@ -1112,7 +1121,9 @@ const char page[] PROGMEM = R"rawliteral(
 		// Start the connection when the page loads
 		window.addEventListener("load", initWebSocket);
 
-		async function savePreset() {
+		document.querySelector("#save-preset").addEventListener("submit", savePreset);
+		async function savePreset(e) {
+			e.preventDefault();
 			const MAX_TITLE_LENGTH = 50;
 			const MAX_DESC_LENGTH = 100;
 			let title = document.querySelector("#save-preset-title");
@@ -1132,6 +1143,8 @@ const char page[] PROGMEM = R"rawliteral(
 			let presetToSave = structuredClone(data);
 			presetToSave.title = title.value;
 			presetToSave.desc = desc.value;
+			title.value = "";
+			title.value = "";
 
 			try {
 				let res = await fetch("/preset", {
@@ -1148,6 +1161,13 @@ const char page[] PROGMEM = R"rawliteral(
 				console.error(e);
 				snackbar("Failed to save preset", true);
 			}
+		}
+
+		function playPreset(elem) {
+			let preset = presets.find((el) => el.filename == elem.closest(".preset").getAttribute("filename"));
+			data = preset;
+			toggleList(false);
+			render();
 		}
 
 		function renderPresets(presets) {
@@ -1172,13 +1192,14 @@ const char page[] PROGMEM = R"rawliteral(
 			});
 		}
 
+		let presets;
 		async function loadPresets() {
 			try {
 				const response = await fetch("/presets");
 				if (!response.ok) {
 					throw new Error(`HTTP error! status: ${response.status}`);
 				}
-				const presets = await response.json();
+				presets = await response.json();
 
 				console.log("Presets loaded:", presets);
 				document.querySelector("#presets-amount").innerText = presets.length;
