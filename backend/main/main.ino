@@ -191,9 +191,10 @@ const char page[] PROGMEM = R"rawliteral(
 				</div>
 			</div>
 			<div id="save-preset">
-				<input type="text" placeholder="Title" id="save-preset-title" />
-				<input type="text" placeholder="Description" id="save-preset-desc" />
-				<button onclick="savePreset()">save as preset</button>
+				<p class="font-header">Save as preset</p>
+				<input type="text" placeholder="Preset title" id="save-preset-title" maxlength="50" />
+				<textarea placeholder="Preset description" id="save-preset-desc" maxlength="100" rows="5"></textarea>
+				<button onclick="savePreset()">Save as preset</button>
 			</div>
 		</div>
 		<div id="snackbar">
@@ -209,7 +210,7 @@ const char page[] PROGMEM = R"rawliteral(
 			</div>
 			<p class="font-header color-white">Presets <span id="presets-amount" class="font-regular">0</span></p>
 			<div id="presets">
-				<div class="preset">
+				<div class="preset clone">
 					<div class="preset-left">
 						<p class="preset-title font-semiHeader">This is a Preset test</p>
 						<p class="preset-description font-descriptive">Preset description</p>
@@ -255,7 +256,8 @@ const char page[] PROGMEM = R"rawliteral(
 		}
 		p,
 		button,
-		input {
+		input,
+		textarea {
 			color: white;
 			font-size: var(--regular);
 			font-family: Arial, Helvetica, sans-serif;
@@ -550,9 +552,31 @@ const char page[] PROGMEM = R"rawliteral(
 		}
 
 		/*save preset*/
+		#save-preset {
+			display: flex;
+			flex-direction: column;
+			margin-top: calc(var(--margin) * 4);
+		}
+		#save-preset > .font-header {
+			margin-bottom: var(--margin);
+		}
 		#save-preset > input {
 			background-color: transparent;
 			border: none;
+			font-size: var(--semiHeader);
+			margin-bottom: calc(var(--margin) / 2);
+		}
+		#save-preset > textarea {
+			background-color: transparent;
+			border: none;
+			opacity: 0.8;
+		}
+		#save-preset > button {
+			margin-top: var(--margin);
+			background-color: transparent;
+			padding: calc(var(--margin) * 1.5);
+			border-radius: 100px;
+			border: 1px solid var(--grey);
 		}
 
 		/*snackbar*/
@@ -596,6 +620,9 @@ const char page[] PROGMEM = R"rawliteral(
 			border-radius: calc(var(--radius) / 2);
 			display: flex;
 			align-items: center;
+		}
+		.preset.clone {
+			display: none;
 		}
 		.preset-left {
 			flex-grow: 1;
@@ -643,6 +670,7 @@ const char page[] PROGMEM = R"rawliteral(
 			if (show) {
 				listView.style.display = "block";
 				body.style.overflow = "hidden";
+				loadPresets();
 			} else {
 				listView.style.display = "none";
 				body.style.overflow = "auto";
@@ -1086,13 +1114,20 @@ const char page[] PROGMEM = R"rawliteral(
 
 		async function savePreset() {
 			const MAX_TITLE_LENGTH = 50;
+			const MAX_DESC_LENGTH = 100;
 			let title = document.querySelector("#save-preset-title");
 			let desc = document.querySelector("#save-preset-desc");
 			if (!title.value || title.value.length == 0) {
 				snackbar("Preset must have a title", true);
+				return;
 			}
 			if (title.value.length > MAX_TITLE_LENGTH) {
 				snackbar(`Title mustn't be longer than ${MAX_TITLE_LENGTH} characters`, true);
+				return;
+			}
+			if (desc.value.length > MAX_DESC_LENGTH) {
+				snackbar(`Description mustn't be longer than ${MAX_DESC_LENGTH} characters`, true);
+				return;
 			}
 			let presetToSave = structuredClone(data);
 			presetToSave.title = title.value;
@@ -1108,9 +1143,49 @@ const char page[] PROGMEM = R"rawliteral(
 				}
 				let json = await res.json();
 				console.log(res, json);
+				snackbar("Saved preset");
 			} catch (e) {
 				console.error(e);
 				snackbar("Failed to save preset", true);
+			}
+		}
+
+		function renderPresets(presets) {
+			let presetBody = document.querySelector("#presets");
+			let toDelete = document.querySelectorAll(".preset-delete-on-rerender");
+			toDelete.forEach((el, i) => {
+				el.remove();
+			});
+			presets.forEach((el) => {
+				let cloned = presetBody.querySelector(".preset.clone").cloneNode(true);
+				cloned.classList.remove("clone");
+				cloned.classList.add("preset-delete-on-rerender");
+				cloned.querySelector(".preset-title").innerText = el.title;
+				let presetDesc = cloned.querySelector(".preset-description");
+				if (!el.desc || el.desc.length == 0) {
+					presetDesc.style.display = "none";
+				} else {
+					cloned.querySelector(".preset-description").innerText = el.desc;
+				}
+				cloned.setAttribute("filename", el.filename);
+				presetBody.insertBefore(cloned, presetBody.childNodes[presetBody.childNodes.length]);
+			});
+		}
+
+		async function loadPresets() {
+			try {
+				const response = await fetch("/presets");
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+				const presets = await response.json();
+
+				console.log("Presets loaded:", presets);
+				document.querySelector("#presets-amount").innerText = presets.length;
+				renderPresets(presets);
+			} catch (error) {
+				console.error("Could not fetch presets:", error);
+				snackbar("Couldn't load presets", true);
 			}
 		}
 
@@ -1319,23 +1394,63 @@ class Presets {
 				}
 			}
 		}
-		void addPreset(const JsonDocument& givenData){
-			serializeJsonPretty(givenData, Serial);
-			//const char* user = doc["user"];
+		String generateRandomName() {
+  		long randomNum = random(1000, 9999);
+  		unsigned long timestamp = millis();
+  		return "/presets/" + String(timestamp) + String(randomNum) + ".json";
 		}
-		void getAllPresets(){
-			File presetsDir = LittleFS.open(_dirPath);
-			File file = presetsDir.openNextFile();
-			int fileListCutoff = 0;
-  		while (file && fileListCutoff < 50) {
-    		Serial.print("  FILE: ");
-    		Serial.print(file.name());
-    		Serial.print("\tSIZE: ");
-    		Serial.println(file.size());
-    		file = presetsDir.openNextFile();
-				fileListCutoff++;
-  		}
-		}
+		bool addPreset(const JsonDocument& doc) {
+      String path = generateRandomName();
+      Serial.printf("Saving to: %s\n", path.c_str());
+      File file = LittleFS.open(path, "w");
+
+      if (!file) {
+        Serial.println("Failed to open file for writing");
+        return false;
+      }
+      size_t bytesWritten = serializeJson(doc, file);
+      file.close();
+      if (bytesWritten == 0) {
+        Serial.println("Failed to write data");
+        return false;
+      }
+      Serial.println("File saved successfully!");
+      return true;
+    }
+		void streamAllPresets(AsyncWebServerRequest *request) {
+      AsyncResponseStream *response = request->beginResponseStream("application/json");
+      
+      JsonDocument masterDoc;
+      JsonArray array = masterDoc.to<JsonArray>();
+
+      File root = LittleFS.open(_dirPath);
+      if (!root || !root.isDirectory()) {
+        response->print("[]");
+        request->send(response);
+        return;
+      }
+
+      File file = root.openNextFile();
+      int count = 0;
+
+      while (file && count < 50) {
+        String fileName = String(file.name());
+        if (!file.isDirectory() && fileName.endsWith(".json")) {
+          JsonDocument tempDoc;
+          DeserializationError error = deserializeJson(tempDoc, file);
+
+          if (!error) {
+            tempDoc["filename"] = fileName;
+            array.add(tempDoc);
+          }
+        }
+        file = root.openNextFile();
+        count++;
+      }
+      root.close();
+      serializeJson(masterDoc, *response);
+      request->send(response);
+    }
 };
 Presets presets;
 
@@ -1411,24 +1526,28 @@ void setup() {
 
 	server.on("/preset", HTTP_POST, [](AsyncWebServerRequest *request) {
 		if (request->_tempObject == nullptr) {
-			request->send(400, "application/json", "{\"error\":\"No data received\"}");
-			return;
-		}
+        request->send(400, "application/json", "{\"error\":\"No data received\"}");
+        return;
+    }
+    
+    String* body = (String*)request->_tempObject;
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, *body);
 
-		String* body = (String*)request->_tempObject;
-		JsonDocument doc;
-		DeserializationError error = deserializeJson(doc, *body);
+    if (error) {
+        status.error("");
+				Serial.println("Error, invalid json");
+        request->send(400, "text/plain", "Invalid JSON");
+    } else {
+        if (presets.addPreset(doc)) {
+            request->send(200, "application/json", "{\"status\":\"saved\"}");
+        } else {
+            request->send(500, "text/plain", "Flash Write Error");
+        }
+    }
 
-		if (error) {
-			request->send(400, "application/json", "{\"error\":\"Invalid JSON\", \"details\":\"" + String(error.c_str()) + "\"}");
-		} 
-		else {
-			presets.addPreset(doc);
-			request->send(200, "application/json", "{\"status\":\"success\"}");
-		}
-
-		delete body;
-		request->_tempObject = nullptr;
+    delete body;
+    request->_tempObject = nullptr;
 
 		}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
 			if (index == 0) {
@@ -1441,6 +1560,9 @@ void setup() {
 				*body += (char)data[i];
 			}
 	});
+	server.on("/presets", HTTP_GET, [](AsyncWebServerRequest *request) {
+    presets.streamAllPresets(request);
+  });
 	server.onNotFound([](AsyncWebServerRequest *request){
 		request->redirect("/");
 	});
