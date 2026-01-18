@@ -110,8 +110,8 @@ const char page[] PROGMEM = R"rawliteral(
 				<button
 					class="time-entry clone"
 					onclick="focusTimeEntry(this)"
-					ontouchstart="initLongPress()"
-					onmousedown="initLongPress()"
+					ontouchstart="initLongPress(this)"
+					onmousedown="initLongPress(this)"
 					ontouchend="cancelLongPress()"
 					onmouseup="cancelLongPress()"
 					ontouchcancel="cancelLongPress()"
@@ -189,6 +189,11 @@ const char page[] PROGMEM = R"rawliteral(
 						<input type="time" class="lamp-wake sleep" />
 					</div>
 				</div>
+			</div>
+			<div id="save-preset">
+				<input type="text" placeholder="Title" id="save-preset-title" />
+				<input type="text" placeholder="Description" id="save-preset-desc" />
+				<button onclick="savePreset()">save as preset</button>
 			</div>
 		</div>
 		<div id="snackbar">
@@ -381,6 +386,7 @@ const char page[] PROGMEM = R"rawliteral(
 		}
 		.time-entry-text > p {
 			color: var(--black);
+			pointer-events: none;
 		}
 		#timeline-add {
 			background-color: transparent;
@@ -398,7 +404,7 @@ const char page[] PROGMEM = R"rawliteral(
 			background-color: var(--areaHighlight);
 			border-radius: var(--radius) var(--radius) 0 0;
 			padding: var(--margin);
-			transition: all 0.5s;
+			transition: all 0.2s;
 			transform: translateY(100%);
 			opacity: 0;
 			-webkit-box-shadow: 0px 0px 15px 0px var(--black);
@@ -543,6 +549,12 @@ const char page[] PROGMEM = R"rawliteral(
 			border: none;
 		}
 
+		/*save preset*/
+		#save-preset > input {
+			background-color: transparent;
+			border: none;
+		}
+
 		/*snackbar*/
 		#snackbar {
 			width: calc(100% - 2 * var(--margin));
@@ -637,7 +649,8 @@ const char page[] PROGMEM = R"rawliteral(
 			}
 		}
 		let pressTimer;
-		function initLongPress() {
+		function initLongPress(elem) {
+			focusTimeEntry(elem);
 			pressTimer = window.setTimeout(() => {
 				toggleColorEntrySettings(true);
 			}, 500);
@@ -1071,6 +1084,36 @@ const char page[] PROGMEM = R"rawliteral(
 		// Start the connection when the page loads
 		window.addEventListener("load", initWebSocket);
 
+		async function savePreset() {
+			const MAX_TITLE_LENGTH = 50;
+			let title = document.querySelector("#save-preset-title");
+			let desc = document.querySelector("#save-preset-desc");
+			if (!title.value || title.value.length == 0) {
+				snackbar("Preset must have a title", true);
+			}
+			if (title.value.length > MAX_TITLE_LENGTH) {
+				snackbar(`Title mustn't be longer than ${MAX_TITLE_LENGTH} characters`, true);
+			}
+			let presetToSave = structuredClone(data);
+			presetToSave.title = title.value;
+			presetToSave.desc = desc.value;
+
+			try {
+				let res = await fetch("/preset", {
+					method: "POST",
+					body: JSON.stringify(presetToSave),
+				});
+				if (!res.ok) {
+					throw new Error("Fetch request failed");
+				}
+				let json = await res.json();
+				console.log(res, json);
+			} catch (e) {
+				console.error(e);
+				snackbar("Failed to save preset", true);
+			}
+		}
+
 		function snackbar(msg, isError = false) {
 			let elem = document.querySelector("#snackbar");
 			let txt = document.querySelector("#snackbar-text");
@@ -1095,7 +1138,36 @@ const char page[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
-// ------------------- Light Class -------------------
+class Status {
+	private:
+		bool errorStatus = false;
+		int errorStatusIntervalMs = 1000;
+		unsigned long lastErrorStatusMs = 0;
+		int status = 1; // 0 = ok / 1 = error
+	public:
+		void ok(){
+			status = 0;
+		}
+		void error(char errorMsg[]){
+			status = 1;
+		}
+		void update(unsigned long currentMillis){
+			switch(status){
+				case 0:
+					digitalWrite(statusLedPin, HIGH);
+					break;
+				case 1:
+					if(lastErrorStatusMs + errorStatusIntervalMs < currentMillis){
+						digitalWrite(statusLedPin, errorStatus);
+						errorStatus = !errorStatus;
+						lastErrorStatusMs = millis();
+					}
+					break;
+			}
+		}
+};
+
+Status status;
 
 JsonDocument globalDoc; 
 char jsonBuffer[2048]; // Adjust size based on your max expected JSON size
@@ -1216,7 +1288,6 @@ class Light {
 			data["activeTime"] = 0;
 			data["activeColor"] = 0;
 			data["times"][0]["t"] = 5;
-			//data["times"][0]["u"] = "min";
 			data["times"][0]["u"] = 1;
 			data["times"][0]["c"][0] = 16777215;
 			data["times"][0]["p"] = 0;
@@ -1224,36 +1295,49 @@ class Light {
 };
 Light light;
 
-class Status {
+class Presets {
+	// https://github.com/espressif/arduino-esp32/blob/master/libraries/LittleFS/examples/LITTLEFS_test/LITTLEFS_test.ino
 	private:
-		bool errorStatus = false;
-		int errorStatusIntervalMs = 1000;
-		unsigned long lastErrorStatusMs = 0;
-		int status = 1; // 0 = ok / 1 = error
+		const char* _dirPath = "/presets";
 	public:
-		void ok(){
-			status = 0;
-		}
-		void error(char errorMsg[]){
-			status = 1;
-		}
-		void update(unsigned long currentMillis){
-			switch(status){
-				case 0:
-					digitalWrite(statusLedPin, HIGH);
-					break;
-				case 1:
-					if(lastErrorStatusMs + errorStatusIntervalMs < currentMillis){
-						digitalWrite(statusLedPin, errorStatus);
-						errorStatus = !errorStatus;
-						lastErrorStatusMs = millis();
-					}
-					break;
+		void init(){
+			if(!LittleFS.begin(true)){
+				Serial.println("An Error has occurred while mounting LittleFS");
+				status.error("An Error has occurred while mounting LittleFS");
+				return;
+			}
+			File presetsDir = LittleFS.open(_dirPath);
+  
+			if (!presetsDir || !presetsDir.isDirectory()) {
+				Serial.println("Failed to open preset directory, try creating it ...");
+				status.error("Failed to open preset directory, try creating it ...");
+
+				if (!LittleFS.mkdir(_dirPath)) {
+					Serial.println("Failed to create preset directory");
+					status.error("Failed to create preset directory");
+					return;
+				}
 			}
 		}
+		void addPreset(const JsonDocument& givenData){
+			serializeJsonPretty(givenData, Serial);
+			//const char* user = doc["user"];
+		}
+		void getAllPresets(){
+			File presetsDir = LittleFS.open(_dirPath);
+			File file = presetsDir.openNextFile();
+			int fileListCutoff = 0;
+  		while (file && fileListCutoff < 50) {
+    		Serial.print("  FILE: ");
+    		Serial.print(file.name());
+    		Serial.print("\tSIZE: ");
+    		Serial.println(file.size());
+    		file = presetsDir.openNextFile();
+				fileListCutoff++;
+  		}
+		}
 };
-
-Status status;
+Presets presets;
 
 void broadcastState() {
   size_t len = serializeJson(light.getData(), jsonBuffer);
@@ -1324,8 +1408,38 @@ void setup() {
 	server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
 		request->send_P(200, "text/html", page);
 	});
-	server.on("/preset", HTTP_POST, [](AsyncWebServerRequest *request){
-		request->send_P(200, "text/html", page); // TODO: save as preset
+
+	server.on("/preset", HTTP_POST, [](AsyncWebServerRequest *request) {
+		if (request->_tempObject == nullptr) {
+			request->send(400, "application/json", "{\"error\":\"No data received\"}");
+			return;
+		}
+
+		String* body = (String*)request->_tempObject;
+		JsonDocument doc;
+		DeserializationError error = deserializeJson(doc, *body);
+
+		if (error) {
+			request->send(400, "application/json", "{\"error\":\"Invalid JSON\", \"details\":\"" + String(error.c_str()) + "\"}");
+		} 
+		else {
+			presets.addPreset(doc);
+			request->send(200, "application/json", "{\"status\":\"success\"}");
+		}
+
+		delete body;
+		request->_tempObject = nullptr;
+
+		}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+			if (index == 0) {
+				String* body = new String("");
+				body->reserve(total);
+				request->_tempObject = body;
+			}
+			String* body = (String*)request->_tempObject;
+			for (size_t i = 0; i < len; i++) {
+				*body += (char)data[i];
+			}
 	});
 	server.onNotFound([](AsyncWebServerRequest *request){
 		request->redirect("/");
@@ -1337,40 +1451,8 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started");
 
-	// https://github.com/espressif/arduino-esp32/blob/master/libraries/LittleFS/examples/LITTLEFS_test/LITTLEFS_test.ino
-
-	if(!LittleFS.begin(true)){
-    Serial.println("An Error has occurred while mounting LittleFS");
-		status.error("An Error has occurred while mounting LittleFS");
-    return;
-  }
-
-	File presetsDir = LittleFS.open("/presets");
-  
-  if (!presetsDir || !presetsDir.isDirectory()) {
-    Serial.println("Failed to open preset directory, try creating it ...");
-		status.error("Failed to open preset directory, try creating it ...");
-
-		if (!LittleFS.mkdir("/presets")) {
-    	Serial.println("Failed to create preset directory");
-			status.error("Failed to create preset directory");
-			return;
-  	}
-  }
-
-	// list presets
-	File file = presetsDir.openNextFile();
-	int fileListCutoff = 0;
-  while (file && fileListCutoff < 50) {
-    Serial.print("  FILE: ");
-    Serial.print(file.name());
-    Serial.print("\tSIZE: ");
-    Serial.println(file.size());
-    file = presetsDir.openNextFile();
-		fileListCutoff++;
-  }
-
 	status.ok();
+	presets.init();
 }
 
 // ------------------- Loop -----------------------------
