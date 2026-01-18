@@ -185,8 +185,8 @@
 			<div id="timeline-interacter-options">
 				<button onclick="deleteTimeEntry()">Delete timeline entry</button>
 				<button onclick="duplicateTimeEntry()">Duplicate timeline entry</button>
-				<button onclick="">Move one left</button>
-				<button onclick="">Move one right</button>
+				<button onclick="moveTimeEntry(-1)">Move one left</button>
+				<button onclick="moveTimeEntry(1)">Move one right</button>
 			</div>
 		</div>
 	</body>
@@ -661,6 +661,14 @@
 			addTimeEntry(data.activeTime, clonedEntry);
 			render();
 		}
+		function moveTimeEntry(direction) {
+			if (direction == -1 && data.activeTime == 0) return;
+			if (direction == 1 && data.activeTime == data.times.length - 1) return;
+			const elem = data.times.splice(data.activeTime, 1)[0];
+			data.times.splice(data.activeTime + direction, 0, elem);
+			data.activeTime += direction;
+			render();
+		}
 
 		function changeType(type) {
 			data.times[data.activeTime].p = type;
@@ -927,9 +935,10 @@
 				}
 				timelineParent.insertBefore(clonedEntry, timelineParent.childNodes[timelineParent.childNodes.length - 2]);
 
-				if (timeEntry.unit == 0) {
+				console.log(timeEntry.u);
+				if (timeEntry.u == 0) {
 					accumulatedSeconds += timeEntry.t;
-				} else if (timeEntry.unit == 1) {
+				} else if (timeEntry.u == 1) {
 					accumulatedSeconds += timeEntry.t * 60;
 				} else {
 					accumulatedSeconds += timeEntry.t * 60 * 60;
