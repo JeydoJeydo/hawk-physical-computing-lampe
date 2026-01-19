@@ -43,13 +43,30 @@
 					<p>Visualize</p>
 				</button>
 			</div>
-			<button id="list" class="btn-active keep" onclick="toggleList(true)">
-				<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
-					<path
-						d="M280-600v-80h560v80H280Zm0 160v-80h560v80H280Zm0 160v-80h560v80H280ZM160-600q-17 0-28.5-11.5T120-640q0-17 11.5-28.5T160-680q17 0 28.5 11.5T200-640q0 17-11.5 28.5T160-600Zm0 160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520q17 0 28.5 11.5T200-480q0 17-11.5 28.5T160-440Zm0 160q-17 0-28.5-11.5T120-320q0-17 11.5-28.5T160-360q17 0 28.5 11.5T200-320q0 17-11.5 28.5T160-280Z"
-					/>
-				</svg>
-			</button>
+			<div id="header-right">
+				<button id="make-preset-btn" class="btn-active keep" onclick="makePreset()">
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+						<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+					</svg>
+				</button>
+				<button id="list" class="btn-active keep" onclick="toggleList(true)">
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
+						<path
+							d="M280-600v-80h560v80H280Zm0 160v-80h560v80H280Zm0 160v-80h560v80H280ZM160-600q-17 0-28.5-11.5T120-640q0-17 11.5-28.5T160-680q17 0 28.5 11.5T200-640q0 17-11.5 28.5T160-600Zm0 160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520q17 0 28.5 11.5T200-480q0 17-11.5 28.5T160-440Zm0 160q-17 0-28.5-11.5T120-320q0-17 11.5-28.5T160-360q17 0 28.5 11.5T200-320q0 17-11.5 28.5T160-280Z"
+						/>
+					</svg>
+				</button>
+			</div>
+		</div>
+		<div id="save-preset">
+			<input type="text" placeholder="Preset title" id="save-preset-title" maxlength="50" oninput="updatePresetTitle(this.value)" />
+			<textarea
+				placeholder="Preset description"
+				id="save-preset-desc"
+				maxlength="100"
+				rows="5"
+				oninput="updatePresetDescription(this.value)"
+			></textarea>
 		</div>
 		<div id="timeline">
 			<p class="font-header color-white">Timeline <span class="font-regular font-descriptive" id="font-header-info">1h</span></p>
@@ -137,12 +154,6 @@
 					</div>
 				</div>
 			</div>
-			<form id="save-preset">
-				<p class="font-header">Save as preset</p>
-				<input type="text" placeholder="Preset title" id="save-preset-title" maxlength="50" required />
-				<textarea placeholder="Preset description" id="save-preset-desc" maxlength="100" rows="5"></textarea>
-				<input type="submit" value="Save as preset" id="preset-send" />
-			</form>
 		</div>
 		<div id="snackbar">
 			<p id="snackbar-text" class="color-black">test</p>
@@ -228,6 +239,7 @@
 		body {
 			background-color: var(--bg);
 			padding: var(--margin);
+			padding-bottom: calc(var(--margin) * 8);
 			max-width: 600px;
 			margin: 0 auto;
 		}
@@ -284,7 +296,8 @@
 			justify-content: space-between;
 			margin-bottom: calc(var(--margin) * 4);
 		}
-		#header-left {
+		#header-left,
+		#header-right {
 			display: flex;
 			gap: calc(var(--margin) / 2);
 		}
@@ -303,10 +316,29 @@
 			display: none;
 		}
 		#list,
-		#close-list {
+		#close-list,
+		#make-preset-btn {
 			aspect-ratio: 1;
 			padding: calc(var(--margin) * 1.5);
 			display: flex;
+		}
+
+		/*save preset*/
+		#save-preset {
+			display: none;
+			flex-direction: column;
+			margin-top: calc(var(--margin) * 4);
+		}
+		#save-preset-title {
+			background-color: transparent;
+			border: none;
+			font-size: var(--header);
+			margin-bottom: calc(var(--margin) / 2);
+		}
+		#save-preset > textarea {
+			background-color: transparent;
+			border: none;
+			opacity: 0.8;
 		}
 
 		/*timeline*/
@@ -496,34 +528,6 @@
 			background-color: transparent;
 			width: 4rem;
 			border: none;
-		}
-
-		/*save preset*/
-		#save-preset {
-			display: flex;
-			flex-direction: column;
-			margin-top: calc(var(--margin) * 4);
-		}
-		#save-preset > .font-header {
-			margin-bottom: var(--margin);
-		}
-		#save-preset-title {
-			background-color: transparent;
-			border: none;
-			font-size: var(--semiHeader);
-			margin-bottom: calc(var(--margin) / 2);
-		}
-		#save-preset > textarea {
-			background-color: transparent;
-			border: none;
-			opacity: 0.8;
-		}
-		#preset-send {
-			margin-top: var(--margin);
-			background-color: transparent;
-			padding: calc(var(--margin) * 1.5);
-			border-radius: 100px;
-			border: 1px solid var(--grey);
 		}
 
 		/*snackbar*/
@@ -1012,10 +1016,9 @@
 			foundDurationActiveBtn.classList.remove("btn-inactive");
 			foundDurationActiveBtn.classList.add("btn-active");
 
-			if ("filename" in data) {
-				if ("title" in data) {
-					document.querySelector("#save-preset-title").value = data.title;
-				}
+			if ("filename" in data && "title" in data) {
+				makePreset();
+				document.querySelector("#save-preset-title").value = data.title;
 				if ("desc" in data) {
 					document.querySelector("#save-preset-desc").value = data.desc;
 				}
@@ -1028,7 +1031,6 @@
 		}
 		render();
 
-		// 1. Initialize the connection
 		function initWebSocket() {
 			console.log("Trying to open a WebSocket connection...");
 			websocket = new WebSocket(gateway);
@@ -1037,6 +1039,7 @@
 			websocket.onclose = onClose;
 			websocket.onmessage = onMessage;
 		}
+		window.addEventListener("load", initWebSocket);
 
 		function onOpen(event) {
 			console.log("Connection opened");
@@ -1050,68 +1053,52 @@
 			snackbar("Connection lost, retrying in 2 seconds", true);
 		}
 
-		// 2. Handle incoming data from the ESP8266
+		let lastMessageId;
 		function onMessage(event) {
 			console.log("unparsed:", event);
-			data = JSON.parse(event.data);
-			console.log("Received state from ESP:", data);
-			render(true);
+			let parsedData = JSON.parse(event.data);
+			console.log("Received state from ESP:", parsedData);
+			if ("times" in parsedData && parsedData.msgId !== lastMessageId) {
+				data = JSON.parse(event.data);
+				render();
+			} else {
+				data.filename = parsedData.filename;
+			}
 		}
 
-		// 3. Send data to the ESP8266
+		let timeSinceLastSave = 0;
+		const DOWNTIME_TO_PRESET_SAVE_MS = 1000;
 		function sendData() {
 			if (websocket && websocket.readyState === WebSocket.OPEN) {
+				lastMessageId = Math.random().toString(36).substr(2, 9);
+				data.msgId = lastMessageId;
 				websocket.send(JSON.stringify(data));
+				timeSinceLastSave = Date.now();
+
+				if (timeSinceLastSave + DOWNTIME_TO_PRESET_SAVE_MS < Date.now()) {
+					console.log("save preset");
+					savePreset();
+				}
 			}
 		}
 
-		// Start the connection when the page loads
-		window.addEventListener("load", initWebSocket);
+		function makePreset() {
+			document.querySelector("#save-preset").style.display = "flex";
+			document.querySelector("#make-preset-btn").style.display = "none";
+		}
 
-		document.querySelector("#save-preset").addEventListener("submit", savePreset);
-		async function savePreset(e) {
-			e.preventDefault();
-			const MAX_TITLE_LENGTH = 50;
-			const MAX_DESC_LENGTH = 100;
-			let title = document.querySelector("#save-preset-title");
-			let desc = document.querySelector("#save-preset-desc");
-			if (!title.value || title.value.length == 0) {
-				snackbar("Preset must have a title", true);
-				return;
-			}
-			if (title.value.length > MAX_TITLE_LENGTH) {
-				snackbar(`Title mustn't be longer than ${MAX_TITLE_LENGTH} characters`, true);
-				return;
-			}
-			if (desc.value.length > MAX_DESC_LENGTH) {
-				snackbar(`Description mustn't be longer than ${MAX_DESC_LENGTH} characters`, true);
-				return;
-			}
-			let presetToSave = structuredClone(data);
-			presetToSave.title = title.value;
-			presetToSave.desc = desc.value;
-			title.value = "";
-			title.value = "";
-
-			try {
-				let res = await fetch("/preset", {
-					method: "POST",
-					body: JSON.stringify(presetToSave),
-				});
-				if (!res.ok) {
-					throw new Error("Fetch request failed");
-				}
-				let json = await res.json();
-				console.log(res, json);
-				snackbar("Saved preset");
-			} catch (e) {
-				console.error(e);
-				snackbar("Failed to save preset", true);
-			}
+		function updatePresetTitle(value) {
+			data.title = value;
+			sendData();
+		}
+		function updatePresetDescription(value) {
+			data.desc = value;
+			sendData();
 		}
 
 		function playPreset(elem) {
 			let preset = presets.find((el) => el.filename == elem.closest(".preset").getAttribute("filename"));
+			preset.on = data.on;
 			data = preset;
 			toggleList(false);
 			render();
