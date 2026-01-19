@@ -227,7 +227,7 @@ const char page[] PROGMEM = R"rawliteral(
 						<p class="preset-description font-descriptive">Preset description</p>
 					</div>
 					<div class="preset-right">
-						<button class="preset-more">
+						<button class="preset-more" onclick="deletePreset(this)">
 							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
 								<path
 									d="M240-400q-33 0-56.5-23.5T160-480q0-33 23.5-56.5T240-560q33 0 56.5 23.5T320-480q0 33-23.5 56.5T240-400Zm240 0q-33 0-56.5-23.5T400-480q0-33 23.5-56.5T480-560q33 0 56.5 23.5T560-480q0 33-23.5 56.5T480-400Zm240 0q-33 0-56.5-23.5T640-480q0-33 23.5-56.5T720-560q33 0 56.5 23.5T800-480q0 33-23.5 56.5T720-400Z"
@@ -1126,7 +1126,6 @@ const char page[] PROGMEM = R"rawliteral(
 				lastMessageId = Math.random().toString(36).substr(2, 9);
 				data.msgId = lastMessageId;
 				websocket.send(JSON.stringify(data));
-				console.log("sending ...", data);
 				timeSinceLastSave = Date.now();
 
 				if (timeSinceLastSave + DOWNTIME_TO_PRESET_SAVE_MS < Date.now()) {
@@ -1178,6 +1177,25 @@ const char page[] PROGMEM = R"rawliteral(
 				cloned.setAttribute("filename", el.filename);
 				presetBody.insertBefore(cloned, presetBody.childNodes[presetBody.childNodes.length]);
 			});
+		}
+
+		async function deletePreset(elem) {
+			let filename = elem.closest(".preset").getAttribute("filename");
+			const url = `/delete-preset?filename=${encodeURIComponent(filename)}`;
+			try {
+				const response = await fetch(url, {
+					method: "POST",
+				});
+				if (response.ok) {
+					snackbar("Deleted preset");
+					loadPresets();
+				} else {
+					throw new Error("Couldn't delete preset");
+				}
+			} catch (e) {
+				console.error(e);
+				snackbar("Couldn't delete preset", true);
+			}
 		}
 
 		let presets;
@@ -1314,6 +1332,27 @@ class Presets {
 				return true;
 			}else{
 				return false;
+			}
+		}
+		bool deletePreset(const char* filename){
+			if (!filename || filename[0] == '\0') {
+					Serial.println("Delete failed: No filename provided");
+					return false;
+			}
+
+			char pathBuffer[40]; 
+			snprintf(pathBuffer, sizeof(pathBuffer), "%s/%s", _dirPath, filename);
+			if (!LittleFS.exists(pathBuffer)) {
+					Serial.printf("Delete failed: %s does not exist\n", pathBuffer);
+					return false;
+			}
+			if (LittleFS.remove(pathBuffer)) {
+					Serial.printf("Successfully deleted: %s\n", pathBuffer);
+					return true;
+			} else {
+					Serial.println("Delete failed: System error");
+					status.error("");
+					return false;
 			}
 		}
 		void streamAllPresets(AsyncWebServerRequest *request) {
@@ -1570,6 +1609,21 @@ void setup() {
 
 	server.on("/presets", HTTP_GET, [](AsyncWebServerRequest *request) {
     presets.streamAllPresets(request);
+  });
+
+	server.on("/delete-preset", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if(request->hasParam("filename")){
+			const AsyncWebParameter* p = request->getParam("filename");
+			const char* filename = p->value().c_str();
+
+			if(presets.deletePreset(filename)){
+				request->send(200, "application/json", "{\"msg\":\"Deleted preset\"}");
+			}else{
+				request->send(404, "application/json", "{\"msg\":\"Error: File not found\"}");
+			}
+		}else{
+			request->send(400, "application/json", "{\"msg\":\"Error: Missing filename\"}");
+		}
   });
 
 	server.onNotFound([](AsyncWebServerRequest *request){
