@@ -45,8 +45,27 @@
 			</div>
 			<div id="header-right">
 				<button id="make-preset-btn" class="btn-active keep" onclick="makePreset()">
-					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="white">
+					<svg
+						id="preset-icon-plus"
+						xmlns="http://www.w3.org/2000/svg"
+						height="24px"
+						viewBox="0 -960 960 960"
+						width="24px"
+						fill="var(--white)"
+					>
 						<path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+					</svg>
+					<svg
+						id="preset-icon-revert"
+						xmlns="http://www.w3.org/2000/svg"
+						height="24px"
+						viewBox="0 -960 960 960"
+						width="24px"
+						fill="var(--white)"
+					>
+						<path
+							d="M440-122q-121-15-200.5-105.5T160-440q0-66 26-126.5T260-672l57 57q-38 34-57.5 79T240-440q0 88 56 155.5T440-202v80Zm80 0v-80q87-16 143.5-83T720-440q0-100-70-170t-170-70h-3l44 44-56 56-140-140 140-140 56 56-44 44h3q134 0 227 93t93 227q0 121-79.5 211.5T520-122Z"
+						/>
 					</svg>
 				</button>
 				<button id="list" class="btn-active keep" onclick="toggleList(true)">
@@ -59,6 +78,7 @@
 			</div>
 		</div>
 		<div id="save-preset">
+			<p id="preset-info">preset</p>
 			<input type="text" placeholder="Preset title" id="save-preset-title" maxlength="50" oninput="updatePresetTitle(this.value)" />
 			<textarea
 				placeholder="Preset description"
@@ -177,7 +197,7 @@
 						<button class="preset-more" onclick="deletePreset(this)">
 							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
 								<path
-									d="M240-400q-33 0-56.5-23.5T160-480q0-33 23.5-56.5T240-560q33 0 56.5 23.5T320-480q0 33-23.5 56.5T240-400Zm240 0q-33 0-56.5-23.5T400-480q0-33 23.5-56.5T480-560q33 0 56.5 23.5T560-480q0 33-23.5 56.5T480-400Zm240 0q-33 0-56.5-23.5T640-480q0-33 23.5-56.5T720-560q33 0 56.5 23.5T800-480q0 33-23.5 56.5T720-400Z"
+									d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"
 								/>
 							</svg>
 						</button>
@@ -322,12 +342,25 @@
 			padding: calc(var(--margin) * 1.5);
 			display: flex;
 		}
+		#preset-icon-revert {
+			display: none;
+		}
 
 		/*save preset*/
 		#save-preset {
 			display: none;
 			flex-direction: column;
 			margin-top: calc(var(--margin) * 4);
+		}
+		#preset-info {
+			text-transform: uppercase;
+			background-color: var(--white);
+			color: var(--black);
+			font-size: var(--small);
+			padding: 2px 4px;
+			border-radius: calc(var(--radius) / 4);
+			align-self: flex-start;
+			margin-bottom: calc(var(--margin) / 2);
 		}
 		#save-preset-title {
 			background-color: transparent;
@@ -951,6 +984,7 @@
 			}
 		}
 
+		let presetVisible = false;
 		function render(blockLampUpdate = false) {
 			let timelineParent = document.querySelector("#timeline-inner");
 			let toDelete = document.querySelectorAll(".delete-on-rerender");
@@ -1016,12 +1050,21 @@
 			foundDurationActiveBtn.classList.remove("btn-inactive");
 			foundDurationActiveBtn.classList.add("btn-active");
 
-			if ("filename" in data && "title" in data) {
-				makePreset();
-				document.querySelector("#save-preset-title").value = data.title;
+			if (presetVisible || ("filename" in data && "title" in data)) {
+				document.querySelector("#save-preset").style.display = "flex";
+				document.querySelector("#preset-icon-plus").style.display = "none";
+				document.querySelector("#preset-icon-revert").style.display = "block";
+
+				document.querySelector("#save-preset-title").value = data.title ?? "";
 				if ("desc" in data) {
 					document.querySelector("#save-preset-desc").value = data.desc;
 				}
+			} else {
+				document.querySelector("#save-preset-title").value = "";
+				document.querySelector("#save-preset-title").desc = "";
+				document.querySelector("#save-preset").style.display = "none";
+				document.querySelector("#preset-icon-plus").style.display = "block";
+				document.querySelector("#preset-icon-revert").style.display = "none";
 			}
 
 			if (visualizeChanges && !blockLampUpdate) {
@@ -1049,8 +1092,8 @@
 		function onClose(event) {
 			console.log("Connection closed");
 			// Try to reconnect every 2 seconds
-			setTimeout(initWebSocket, 2000);
-			snackbar("Connection lost, retrying in 2 seconds", true);
+			setTimeout(initWebSocket, 5000);
+			snackbar("Connection lost, retrying in 5 seconds", true);
 		}
 
 		let lastMessageId;
@@ -1060,31 +1103,46 @@
 			console.log("Received state from ESP:", parsedData);
 			if ("times" in parsedData && parsedData.msgId !== lastMessageId) {
 				data = JSON.parse(event.data);
-				render();
+				render(true);
 			} else {
 				data.filename = parsedData.filename;
 			}
 		}
 
-		let timeSinceLastSave = 0;
-		const DOWNTIME_TO_PRESET_SAVE_MS = 1000;
 		function sendData() {
 			if (websocket && websocket.readyState === WebSocket.OPEN) {
 				lastMessageId = Math.random().toString(36).substr(2, 9);
 				data.msgId = lastMessageId;
 				websocket.send(JSON.stringify(data));
-				timeSinceLastSave = Date.now();
-
-				if (timeSinceLastSave + DOWNTIME_TO_PRESET_SAVE_MS < Date.now()) {
-					console.log("save preset");
-					savePreset();
-				}
 			}
 		}
 
 		function makePreset() {
-			document.querySelector("#save-preset").style.display = "flex";
-			document.querySelector("#make-preset-btn").style.display = "none";
+			if (presetVisible || (data.filename && data.filename.length !== 0)) {
+				data = {
+					on: false,
+					restart: true,
+					activeTime: 0,
+					activeColor: 0,
+					times: [
+						{
+							t: 13,
+							u: 1, // 0 = seconds, 1 = minutes, 2 = hours
+							c: [16777215], // white in color_int
+							p: 0, // 0 = solid / 1 = gradient / 2 = draw
+						},
+					],
+				};
+				presetVisible = false;
+				render();
+			} else {
+				presetVisible = true;
+				document.querySelector("#save-preset").style.display = "flex";
+				document.querySelector("#save-preset-title").value = "";
+				document.querySelector("#save-preset-desc").value = "";
+				document.querySelector("#preset-icon-plus").style.display = "none";
+				document.querySelector("#preset-icon-revert").style.display = "block";
+			}
 		}
 
 		function updatePresetTitle(value) {
