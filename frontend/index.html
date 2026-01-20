@@ -924,12 +924,11 @@
 				[6, -1],
 			],
 		];
-		let buildLedArray = Array(96).fill(0);
-		console.log("buildledarray:", buildLedArray);
 		let xStep = 0;
 		let yStep = 0;
 		let lastCalculatedIndex = -1;
 		function calculateDrawedColorArray(x, y) {
+			let buildLedArray = Array(96).fill(0);
 			let currentIndex = -1;
 			for (let i = 0; i < rects.length; i++) {
 				let entry = rects[i];
@@ -955,20 +954,11 @@
 			}
 
 			lastCalculatedIndex = calculatedIndex;
+			colorPixelsOnDrawWidget(buildLedArray);
 		}
 
 		function colorPixelsOnDrawWidget(colors) {
-			// Skip because one white pixel is the basic
-			// color setting and user most likely didn't draw any.
-			if (colors.length == 1 && colors[0] == 16777215) {
-				return;
-			}
-			console.log("COLORS:", colors);
 			for (let i = 0; i < colors.length; i++) {
-				if (isNaN(colors[i])) {
-					console.log("IS EMPTY", colors[i]);
-					break;
-				}
 				let sideIndex = 0;
 				let rowIndex = 0;
 				let index = 0;
@@ -979,8 +969,8 @@
 
 						index = ledIndexes[sideI][rowI].indexOf(i);
 						if (index !== -1 && colors[i] !== 0) {
-							let pixelHeight = Math.floor(rects[sideI].height_n / ledIndexes[sideI].length);
-							let pixelWidth = Math.floor(rects[sideI].width_n / ledIndexes[sideI][rowI].length);
+							let pixelHeight = rects[sideI].height_n / ledIndexes[sideI].length;
+							let pixelWidth = rects[sideI].width_n / ledIndexes[sideI][rowI].length;
 							let x = rects[sideI].x_n + pixelWidth * index;
 							let y = rects[sideI].y_n + pixelHeight * rowI;
 							ctx.fillStyle = "#" + colors[i].toString(16).padStart(6, "0");
