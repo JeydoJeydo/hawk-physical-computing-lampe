@@ -160,6 +160,7 @@
 					<button class="btn-active remove-active duration-s" onclick="changeUnit('s')">Seconds</button>
 				</div>
 			</div>
+			<!--
 			<div class="widget-halfed">
 				<div class="widget">
 					<p class="widget-header">Lamp<br />Wakeup</p>
@@ -174,6 +175,7 @@
 					</div>
 				</div>
 			</div>
+			-->
 		</div>
 		<div id="snackbar">
 			<p id="snackbar-text" class="color-black">test</p>
@@ -195,14 +197,14 @@
 					</div>
 					<div class="preset-right">
 						<button class="preset-more" onclick="deletePreset(this)">
-							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
+							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--black)">
 								<path
 									d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"
 								/>
 							</svg>
 						</button>
 						<button class="preset-play" onclick="playPreset(this)">
-							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
+							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--black)">
 								<path d="M320-200v-560l440 280-440 280Zm80-280Zm0 134 210-134-210-134v268Z" />
 							</svg>
 						</button>
@@ -611,6 +613,9 @@
 		.preset-left {
 			flex-grow: 1;
 		}
+		.preset-left > p {
+			color: var(--black);
+		}
 		.preset-title {
 			margin-bottom: calc(var(--margin) / 2);
 		}
@@ -684,7 +689,6 @@
 			on: false,
 			restart: true,
 			activeTime: 0,
-			activeColor: 0,
 			times: [
 				{
 					t: 13,
@@ -750,6 +754,11 @@
 
 		function changeType(type) {
 			data.times[data.activeTime].p = type;
+			if (type == 0) {
+				data.times[data.activeTime].c = [16777215];
+			} else if (type == 2) {
+				data.times[data.activeTime].c = Array(96).fill(0);
+			}
 			render();
 		}
 
@@ -898,25 +907,25 @@
 			],
 			// left part
 			[
-				[20, -1],
-				[19, 48],
-				[18, 47],
-				[-1, 46],
-				[17, 45],
-				[16, -1],
+				[-1, 20],
+				[48, 19],
+				[47, 18],
+				[46, -1],
+				[45, 17],
+				[-1, 16],
 			],
 			// right part
 			[
-				[-1, 2],
-				[32, 3],
-				[33, 4],
-				[34, -1],
-				[35, 5],
-				[-1, 6],
+				[2, -1],
+				[3, 32],
+				[4, 33],
+				[-1, 34],
+				[5, 35],
+				[6, -1],
 			],
 		];
 		let buildLedArray = Array(96).fill(0);
-		console.log(buildLedArray);
+		console.log("buildledarray:", buildLedArray);
 		let xStep = 0;
 		let yStep = 0;
 		let lastCalculatedIndex = -1;
@@ -939,7 +948,6 @@
 			let yLed = Math.floor((y - rects[currentIndex].y_n) / yStep);
 			let calculatedIndex = ledIndexes[currentIndex][yLed][xLed];
 			buildLedArray[calculatedIndex] = convertToColorInt(currentDrawingColor);
-			console.log(buildLedArray);
 			data.times[data.activeTime].c = buildLedArray;
 
 			if (calculatedIndex !== lastCalculatedIndex && visualizeChanges) {
@@ -947,6 +955,41 @@
 			}
 
 			lastCalculatedIndex = calculatedIndex;
+		}
+
+		function colorPixelsOnDrawWidget(colors) {
+			// Skip because one white pixel is the basic
+			// color setting and user most likely didn't draw any.
+			if (colors.length == 1 && colors[0] == 16777215) {
+				return;
+			}
+			console.log("COLORS:", colors);
+			for (let i = 0; i < colors.length; i++) {
+				if (isNaN(colors[i])) {
+					console.log("IS EMPTY", colors[i]);
+					break;
+				}
+				let sideIndex = 0;
+				let rowIndex = 0;
+				let index = 0;
+				side: for (let sideI = 0; sideI < ledIndexes.length; sideI++) {
+					sideIndex++;
+					for (let rowI = 0; rowI < ledIndexes[sideI].length; rowI++) {
+						rowIndex++;
+
+						index = ledIndexes[sideI][rowI].indexOf(i);
+						if (index !== -1 && colors[i] !== 0) {
+							let pixelHeight = Math.floor(rects[sideI].height_n / ledIndexes[sideI].length);
+							let pixelWidth = Math.floor(rects[sideI].width_n / ledIndexes[sideI][rowI].length);
+							let x = rects[sideI].x_n + pixelWidth * index;
+							let y = rects[sideI].y_n + pixelHeight * rowI;
+							ctx.fillStyle = "#" + colors[i].toString(16).padStart(6, "0");
+							ctx.fillRect(x, y, pixelWidth, pixelHeight);
+							break side;
+						}
+					}
+				}
+			}
 		}
 
 		function changeDuration(type) {
@@ -1042,6 +1085,7 @@
 			} else if (data.times[data.activeTime].p == 2) {
 				document.querySelector(".color-widget-2").style.display = "block";
 				document.querySelector(".color-widget-0").style.display = "none";
+				colorPixelsOnDrawWidget(data.times[data.activeTime].c);
 			}
 
 			document.querySelector("#duration-teller").value = data.times[data.activeTime].t;
@@ -1123,7 +1167,6 @@
 					on: false,
 					restart: true,
 					activeTime: 0,
-					activeColor: 0,
 					times: [
 						{
 							t: 13,
@@ -1180,6 +1223,7 @@
 					cloned.querySelector(".preset-description").innerText = el.desc;
 				}
 				cloned.setAttribute("filename", el.filename);
+				cloned.style.backgroundColor = "#" + el.times[0].c[0].toString(16).padStart(6, "0");
 				presetBody.insertBefore(cloned, presetBody.childNodes[presetBody.childNodes.length]);
 			});
 		}

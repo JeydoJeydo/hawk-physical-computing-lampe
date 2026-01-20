@@ -248,14 +248,14 @@ const char page[] PROGMEM = R"rawliteral(
 					</div>
 					<div class="preset-right">
 						<button class="preset-more" onclick="deletePreset(this)">
-							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
+							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--black)">
 								<path
 									d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"
 								/>
 							</svg>
 						</button>
 						<button class="preset-play" onclick="playPreset(this)">
-							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--white)">
+							<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="var(--black)">
 								<path d="M320-200v-560l440 280-440 280Zm80-280Zm0 134 210-134-210-134v268Z" />
 							</svg>
 						</button>
@@ -664,6 +664,9 @@ const char page[] PROGMEM = R"rawliteral(
 		.preset-left {
 			flex-grow: 1;
 		}
+		.preset-left > p {
+			color: var(--black);
+		}
 		.preset-title {
 			margin-bottom: calc(var(--margin) / 2);
 		}
@@ -951,25 +954,24 @@ const char page[] PROGMEM = R"rawliteral(
 			],
 			// left part
 			[
-				[20, -1],
-				[19, 48],
-				[18, 47],
-				[-1, 46],
-				[17, 45],
-				[16, -1],
+				[-1, 20],
+				[48, 19],
+				[47, 18],
+				[46, -1],
+				[45, 17],
+				[-1, 16],
 			],
 			// right part
 			[
-				[-1, 2],
-				[32, 3],
-				[33, 4],
-				[34, -1],
-				[35, 5],
-				[-1, 6],
+				[2, -1],
+				[3, 32],
+				[4, 33],
+				[-1, 34],
+				[5, 35],
+				[6, -1],
 			],
 		];
 		let buildLedArray = Array(96).fill(0);
-		console.log(buildLedArray);
 		let xStep = 0;
 		let yStep = 0;
 		let lastCalculatedIndex = -1;
@@ -1000,6 +1002,31 @@ const char page[] PROGMEM = R"rawliteral(
 			}
 
 			lastCalculatedIndex = calculatedIndex;
+		}
+
+		function colorPixelsOnDrawWidget(colors) {
+			for (let i = 0; i < colors.length; i++) {
+				let sideIndex = 0;
+				let rowIndex = 0;
+				let index = 0;
+				side: for (let sideI = 0; sideI < ledIndexes.length; sideI++) {
+					sideIndex++;
+					for (let rowI = 0; rowI < ledIndexes[sideI].length; rowI++) {
+						rowIndex++;
+
+						index = ledIndexes[sideI][rowI].indexOf(i);
+						if (index !== -1 && colors[i] !== 0) {
+							let pixelHeight = Math.floor(rects[sideI].height_n / ledIndexes[sideI].length);
+							let pixelWidth = Math.floor(rects[sideI].width_n / ledIndexes[sideI][rowI].length);
+							let x = rects[sideI].x_n + pixelWidth * index;
+							let y = rects[sideI].y_n + pixelHeight * rowI;
+							ctx.fillStyle = "#" + colors[i].toString(16).padStart(6, "0");
+							ctx.fillRect(x, y, pixelWidth, pixelHeight);
+							break side;
+						}
+					}
+				}
+			}
 		}
 
 		function changeDuration(type) {
@@ -1095,6 +1122,7 @@ const char page[] PROGMEM = R"rawliteral(
 			} else if (data.times[data.activeTime].p == 2) {
 				document.querySelector(".color-widget-2").style.display = "block";
 				document.querySelector(".color-widget-0").style.display = "none";
+				colorPixelsOnDrawWidget(data.times[data.activeTime].c);
 			}
 
 			document.querySelector("#duration-teller").value = data.times[data.activeTime].t;
@@ -1233,6 +1261,7 @@ const char page[] PROGMEM = R"rawliteral(
 					cloned.querySelector(".preset-description").innerText = el.desc;
 				}
 				cloned.setAttribute("filename", el.filename);
+				cloned.style.backgroundColor = "#" + el.times[0].c[0].toString(16).padStart(6, "0");
 				presetBody.insertBefore(cloned, presetBody.childNodes[presetBody.childNodes.length]);
 			});
 		}
@@ -1584,7 +1613,6 @@ class Light {
 			data["on"] = false;
 			data["restart"] = true;
 			data["activeTime"] = 0;
-			data["activeColor"] = 0;
 			data["times"][0]["t"] = 5;
 			data["times"][0]["u"] = 1;
 			data["times"][0]["c"][0] = 16777215;
