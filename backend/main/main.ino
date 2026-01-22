@@ -1498,6 +1498,14 @@ class Light {
 		uint32_t colors[100];
 		unsigned long color_length_ms[100];
 
+		const unsigned long TRANSITION_MS = 1000; 
+		unsigned long transitionStartTime = 0;
+		bool isTransitioning = false;
+
+		// Caching colors to avoid JSON walking every frame
+		uint32_t colorFrom = 0x000000;
+		uint32_t colorTo = 0x000000;
+
   public:
 		void setData(const JsonDocument& givenData, AsyncWebSocketClient* client){
 			Serial.println("Data was set");
@@ -1510,7 +1518,7 @@ class Light {
 			presetIsSaved = false;
 			lastClient = client;
 
-			buildColorArray();
+			//buildColorArray();
 		}
 		void resetLastClient(AsyncWebSocketClient* client){
 			if (lastClient == client){
@@ -1523,34 +1531,60 @@ class Light {
       serializeJson(data, response);
       ws.textAll(response); 
 		}
-		void buildColorArray(){
+		void buildColorArray() {
 			const int TRANSITION_TIME = 1000;
-			const int TRANSITION_STEPTS = 10;
+			const int TRANSITION_STEPS = 10;
+			const int STEP_DURATION = TRANSITION_TIME / TRANSITION_STEPS;
 
-			const int dataLength = data["times"].size();
+			const auto& timesArray = data["times"];
+			const int dataLength = timesArray.size();
 
-			// TODO: handle just one entry
+			// 1. Handle Single Entry Case
+			if (dataLength == 1) {
+					colors[0] = timesArray[0]["c"][0];
+					color_length_ms[0] = calculateDuration(timesArray[0]["u"], timesArray[0]["t"]);
+					// Fill the rest with a marker or zero to prevent logic errors later
+					for(int i = 1; i < 100; i++) color_length_ms[i] = 0;
+					return;
+			}
+
 			int currentDataIndex = 0;
-			for(int i = 0; i < dataLength - 1; i++){
-				
-				colors[currentDataIndex] = data["times"][i]["c"][0];
-				
-				for(int j = 0; j < TRANSITION_STEPTS; j++){
-					colors[currentDataIndex] = blendColors(data["times"][i]["c"][0], data["times"][i + 1]["c"][0], j);
-					color_length_ms[currentDataIndex] = 
 
-					currentDataIndex += 1;
-				}
+			for (int i = 0; i < dataLength; i++) {
+					// Cache current and next items for efficiency
+					const auto& currentItem = timesArray[i];
+					// Loop back to the first color if we are at the end of the array
+					const auto& nextItem = timesArray[(i + 1) % dataLength];
 
-				unsigned long durationMs = calculateDuration(data["times"][i]["t"], data["times"][i]["u"]);
-				durationMs -= TRANSITION_TIME / 2;
+					uint32_t startColor = currentItem["c"][0];
+					uint32_t endColor = nextItem["c"][0];
 
-				color_length_ms[i] = durationMs;
+					// --- STEP 1: HOLD CURRENT COLOR ---
+					unsigned long totalDuration = calculateDuration(currentItem["u"], currentItem["t"]);
+					
+					// Ensure we don't subtract more than the total duration
+					unsigned long holdTime = (totalDuration > TRANSITION_TIME) ? (totalDuration - TRANSITION_TIME) : 10;
 
-				unsigned long currentDuration;
-				unsigned long nextDuration;
+					if (currentDataIndex < 100) {
+							colors[currentDataIndex] = startColor;
+							color_length_ms[currentDataIndex] = holdTime;
+							currentDataIndex++;
+					}
 
-				currentDataIndex += 1;
+					// --- STEP 2: TRANSITION TO NEXT COLOR ---
+					for (int j = 1; j <= TRANSITION_STEPS; j++) {
+							if (currentDataIndex < 100) {
+									float progress = (float)j / (float)TRANSITION_STEPS;
+									
+									colors[currentDataIndex] = blendColors(startColor, endColor, progress);
+									color_length_ms[currentDataIndex] = STEP_DURATION;
+									
+									currentDataIndex++;
+							}
+					}
+					
+					// Safety: break if we run out of array space
+					if (currentDataIndex >= 100) break;
 			}
 		}
 		unsigned long calculateDuration(int unit, unsigned long duration){ 
@@ -1599,61 +1633,67 @@ class Light {
 
 			bool isOn = data["on"] | false;
 
-			// 1. REFRESH GUARD: Only update hardware if state changed or index changed
+			// 1. DETECTION: Trigger transition if index or power state changes
 			if (isOn != lastOnState || currentTimeIndex != lastAppliedIndex) {
-        if (!isOn) {
-            strip.fill(0);
-        } else {
-            // Access color as uint32_t directly from JSON (much faster/lighter than strings)
-						int colorType = data["times"][currentTimeIndex]["p"];
-						if (colorType == 0){
-							// show simple color
-							uint32_t currentColor = data["times"][currentTimeIndex]["c"][0] | 0xFFFFFF;
-							strip.fill(currentColor);
-						} else if(colorType == 2){
-							// draw on lamp
-							for(int i = 0; i < data["times"][currentTimeIndex]["c"].size(); i++){
-								uint32_t currentColorInArray = data["times"][currentTimeIndex]["c"][i] | 0xFFFFFF;
-								strip.setPixelColor(i, currentColorInArray); // TODO: update only single pixel values?
-							}
-						}
-						// TODO: add gradient color type
-        }
-        strip.show();
-        
-        lastOnState = isOn;
-        lastAppliedIndex = currentTimeIndex;
+				
+				// Capture the "From" color (current state of the strip)
+				// If it was off, 'from' is black. Otherwise, it's the previous 'To' color.
+				colorFrom = !lastOnState ? 0 : colorTo;
 
-        // 2. PRE-CALCULATE NEXT SWITCH: Only do the math when the index changes
-        unsigned long duration = data["times"][currentTimeIndex]["t"] | 0;
-        int unit = data["times"][currentTimeIndex]["u"] | 1; // 'u' for unit (0=s, 1=m, 2=h)
-        
-        unsigned long durationMs = duration * 1000;
-        if (unit == 1) durationMs *= 60;
-        if (unit == 2) durationMs *= 3600;
+				// Capture the "To" color from JSON once
+				if (!isOn) {
+					colorTo = 0;
+				} else {
+					colorTo = data["times"][currentTimeIndex]["c"][0] | 0xFFFFFF;
+				}
 
-        nextSwitchTime = currentMillis + durationMs;
+				transitionStartTime = currentMillis;
+				isTransitioning = true;
+				
+				lastOnState = isOn;
+				lastAppliedIndex = currentTimeIndex;
+
+				// Pre-calculate next switch time (as you did before)
+				unsigned long duration = data["times"][currentTimeIndex]["t"] | 0;
+				int unit = data["times"][currentTimeIndex]["u"] | 1;
+				unsigned long durationMs = duration * 1000;
+				if (unit == 1) durationMs *= 60;
+				if (unit == 2) durationMs *= 3600;
+				nextSwitchTime = currentMillis + durationMs;
 			}
 
-			// 3. SIMPLE TIMER CHECK: No loops, no JSON walking
-			if (isOn && currentMillis >= nextSwitchTime) {
-				if (currentTimeIndex < data["times"].size() - 1) {
-						currentTimeIndex++;
+			// 2. EXECUTION: Handle the smooth fade
+			if (isTransitioning) {
+				float progress = (currentMillis - transitionStartTime) / (float)TRANSITION_MS;
+
+				if (progress >= 1.0f) {
+					// Transition finished
+					strip.fill(colorTo);
+					strip.show();
+					isTransitioning = false;
 				} else {
-						if (data["restart"] == 1) {
-								currentTimeIndex = 0;
-						} else {
-								data["on"] = 0;
-						}
+					// Calculate intermediate color
+					uint32_t blended = blendColors(colorFrom, colorTo, progress);
+					strip.fill(blended);
+					strip.show();
 				}
 			}
 
-			if(timeSinceLastDataSet + MS_TILL_DOWNTIME < currentMillis){
-				// calculations that are not time critical can be made here after
-				// the user didn't set any data for some time
+			// 3. TIMER CHECK: Advance index (same as your original code)
+			if (isOn && currentMillis >= nextSwitchTime) {
+				if (currentTimeIndex < (int)data["times"].size() - 1) {
+					currentTimeIndex++;
+				} else if (data["restart"] == 1) {
+					currentTimeIndex = 0;
+				} else {
+					data["on"] = 0;
+				}
+			}
+
+			// 4. DOWNTIME TASKS (Presets, etc.)
+			if (currentMillis - timeSinceLastDataSet > MS_TILL_DOWNTIME) {
 				const char* title = data["title"];
-				if(presetIsSaved == false && title && title[0] != '\0'){ // check for null terminator to check if string is empty
-					Serial.println("SAVE AS PRESET");
+				if (!presetIsSaved && title && title[0] != '\0') {
 					presetIsSaved = true;
 					presets.addPreset(data, lastClient);
 				}
