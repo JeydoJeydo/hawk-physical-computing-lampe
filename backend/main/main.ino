@@ -1495,9 +1495,6 @@ class Light {
 
 		AsyncWebSocketClient* lastClient = nullptr;
 
-		uint32_t colors[100];
-		unsigned long color_length_ms[100];
-
 		const unsigned long TRANSITION_MS = 1000; 
 		unsigned long transitionStartTime = 0;
 		bool isTransitioning = false;
@@ -1517,8 +1514,6 @@ class Light {
 			timeSinceLastDataSet = millis();
 			presetIsSaved = false;
 			lastClient = client;
-
-			//buildColorArray();
 		}
 		void resetLastClient(AsyncWebSocketClient* client){
 			if (lastClient == client){
@@ -1530,62 +1525,6 @@ class Light {
 			String response;
       serializeJson(data, response);
       ws.textAll(response); 
-		}
-		void buildColorArray() {
-			const int TRANSITION_TIME = 1000;
-			const int TRANSITION_STEPS = 10;
-			const int STEP_DURATION = TRANSITION_TIME / TRANSITION_STEPS;
-
-			const auto& timesArray = data["times"];
-			const int dataLength = timesArray.size();
-
-			// 1. Handle Single Entry Case
-			if (dataLength == 1) {
-					colors[0] = timesArray[0]["c"][0];
-					color_length_ms[0] = calculateDuration(timesArray[0]["u"], timesArray[0]["t"]);
-					// Fill the rest with a marker or zero to prevent logic errors later
-					for(int i = 1; i < 100; i++) color_length_ms[i] = 0;
-					return;
-			}
-
-			int currentDataIndex = 0;
-
-			for (int i = 0; i < dataLength; i++) {
-					// Cache current and next items for efficiency
-					const auto& currentItem = timesArray[i];
-					// Loop back to the first color if we are at the end of the array
-					const auto& nextItem = timesArray[(i + 1) % dataLength];
-
-					uint32_t startColor = currentItem["c"][0];
-					uint32_t endColor = nextItem["c"][0];
-
-					// --- STEP 1: HOLD CURRENT COLOR ---
-					unsigned long totalDuration = calculateDuration(currentItem["u"], currentItem["t"]);
-					
-					// Ensure we don't subtract more than the total duration
-					unsigned long holdTime = (totalDuration > TRANSITION_TIME) ? (totalDuration - TRANSITION_TIME) : 10;
-
-					if (currentDataIndex < 100) {
-							colors[currentDataIndex] = startColor;
-							color_length_ms[currentDataIndex] = holdTime;
-							currentDataIndex++;
-					}
-
-					// --- STEP 2: TRANSITION TO NEXT COLOR ---
-					for (int j = 1; j <= TRANSITION_STEPS; j++) {
-							if (currentDataIndex < 100) {
-									float progress = (float)j / (float)TRANSITION_STEPS;
-									
-									colors[currentDataIndex] = blendColors(startColor, endColor, progress);
-									color_length_ms[currentDataIndex] = STEP_DURATION;
-									
-									currentDataIndex++;
-							}
-					}
-					
-					// Safety: break if we run out of array space
-					if (currentDataIndex >= 100) break;
-			}
 		}
 		unsigned long calculateDuration(int unit, unsigned long duration){ 
 				// 'u' for unit (0=s, 1=m, 2=h)
@@ -1633,48 +1572,47 @@ class Light {
 
 			bool isOn = data["on"] | false;
 
-			// 1. DETECTION: Trigger when index or power state changes
+			// 1. DETECTION: Trigger transition if index or power state changes
 			if (isOn != lastOnState || currentTimeIndex != lastAppliedIndex) {
-				
 				int colorType = data["times"][currentTimeIndex]["p"] | 0;
 
 				if (!isOn) {
-					// Hard turn off
+					// Transition to Off (Black)
+					colorFrom = (lastOnState) ? colorTo : 0;
 					colorTo = 0;
-					isTransitioning = true; 
 					transitionStartTime = currentMillis;
-					colorFrom = lastOnState ? colorTo : 0; // Capture current before state change
+					isTransitioning = true;
 				} 
 				else if (colorType == 0) {
-					// TYPE 0: Smooth Transition Logic
+					// TYPE 0: Smooth transition between single colors
 					colorFrom = (lastOnState) ? colorTo : 0;
 					colorTo = data["times"][currentTimeIndex]["c"][0] | 0xFFFFFF;
 					transitionStartTime = currentMillis;
 					isTransitioning = true;
 				} 
 				else if (colorType == 2) {
-					// TYPE 2: Hard Transition Logic (Per-Pixel)
-					isTransitioning = false; // Disable smooth blending for this mode
+					// TYPE 2: Hard transition for per-pixel arrays
+					isTransitioning = false; 
 					
 					auto colorArray = data["times"][currentTimeIndex]["c"];
 					size_t numColors = colorArray.size();
+					size_t numLeds = strip.numPixels();
 					
-					for (size_t i = 0; i < strip.numPixels(); i++) {
+					for (size_t i = 0; i < numLeds; i++) {
 						if (i < numColors) {
 							uint32_t c = colorArray[i] | 0xFFFFFF;
 							strip.setPixelColor(i, c);
 						} else {
-							strip.setPixelColor(i, 0); // Clear remaining pixels if array is shorter than strip
+							strip.setPixelColor(i, 0); 
 						}
 					}
 					strip.show();
 					
-					// Update colorTo to the first color of the array 
-					// so that if the NEXT transition is Type 0, it has a starting point.
-					colorTo = colorArray[0] | 0xFFFFFF; 
+					// Save the first color of the array as the "current" color 
+					// so the NEXT transition has a starting point.
+					colorTo = (numColors > 0) ? (uint32_t)(colorArray[0] | 0xFFFFFF) : 0;
 				}
 
-				// Standard state updates
 				lastOnState = isOn;
 				lastAppliedIndex = currentTimeIndex;
 
@@ -1684,10 +1622,11 @@ class Light {
 				unsigned long durationMs = duration * 1000;
 				if (unit == 1) durationMs *= 60;
 				if (unit == 2) durationMs *= 3600;
+
 				nextSwitchTime = currentMillis + durationMs;
 			}
 
-			// 2. EXECUTION: Only runs for Type 0 or turning OFF
+			// 2. EXECUTION: Handle the 1000ms smooth fade (Type 0 and Power Off)
 			if (isTransitioning) {
 				float progress = (currentMillis - transitionStartTime) / (float)TRANSITION_MS;
 
@@ -1702,14 +1641,27 @@ class Light {
 				}
 			}
 
-			// 3. TIMER CHECK (Same as before)
+			// 3. TIMER CHECK: Advance index when time is up
 			if (isOn && currentMillis >= nextSwitchTime) {
 				if (currentTimeIndex < (int)data["times"].size() - 1) {
 					currentTimeIndex++;
-				} else if (data["restart"] == 1) {
-					currentTimeIndex = 0;
 				} else {
-					data["on"] = 0;
+					if (data["restart"] == 1) {
+						currentTimeIndex = 0;
+					} else {
+						data["on"] = 0; // This will trigger the "Off" transition in the next loop
+					}
+				}
+			}
+
+			// 4. DOWNTIME TASKS: Save presets when idle
+			// Added !isTransitioning check so we don't save to Flash while LEDs are fading
+			if (!isTransitioning && (timeSinceLastDataSet + MS_TILL_DOWNTIME < currentMillis)) {
+				const char* title = data["title"];
+				if (presetIsSaved == false && title && title[0] != '\0') {
+					Serial.println("SAVE AS PRESET");
+					presetIsSaved = true;
+					presets.addPreset(data, lastClient);
 				}
 			}
 		}
