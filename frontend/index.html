@@ -818,12 +818,6 @@
 			rects.forEach((el) => {
 				ctx.fillRect(el.x_n, el.y_n, el.width_n, el.height_n);
 			});
-			rects.forEach((el) => {
-				ctx.rect(el.x_n, el.y_n, el.width_n, el.height_n);
-			});
-			ctx.lineWidth = 20;
-			ctx.lineCap = "round";
-			ctx.lineJoin = "round";
 		}
 
 		let drawing = false;
