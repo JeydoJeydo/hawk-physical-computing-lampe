@@ -860,23 +860,10 @@ const char page[] PROGMEM = R"rawliteral(
 				el.width_n = canvasNormalized * el.width;
 				el.height_n = canvasNormalized * el.height;
 			});
-
-			ctx.save();
 			ctx.fillStyle = "#575757";
 			rects.forEach((el) => {
 				ctx.fillRect(el.x_n, el.y_n, el.width_n, el.height_n);
 			});
-			ctx.restore();
-
-			ctx.save();
-			ctx.beginPath();
-			rects.forEach((el) => {
-				ctx.rect(el.x_n, el.y_n, el.width_n, el.height_n);
-			});
-			ctx.clip();
-			ctx.lineWidth = 20;
-			ctx.lineCap = "round";
-			ctx.lineJoin = "round";
 		}
 
 		let drawing = false;
@@ -901,27 +888,17 @@ const char page[] PROGMEM = R"rawliteral(
 		function beginDraw(event) {
 			event.preventDefault();
 			drawing = true;
-			/*
-			const { x, y } = getPosition(event);
-			ctx.strokeStyle = currentDrawingColor;
-			ctx.beginPath();
-			ctx.moveTo(x, y);
-			*/
 		}
 
 		function progressDraw(event) {
 			if (!drawing) return;
 			event.preventDefault();
 			const { x, y } = getPosition(event);
-			//ctx.lineTo(x, y);
-			//ctx.stroke();
-
 			calculateDrawedColorArray(x, y);
 		}
 
 		function stopDraw(event) {
 			drawing = false;
-			//ctx.closePath();
 		}
 
 		function initDrawListeners() {
@@ -1518,6 +1495,9 @@ class Light {
 
 		AsyncWebSocketClient* lastClient = nullptr;
 
+		uint32_t colors[100];
+		unsigned long color_length_ms[100];
+
   public:
 		void setData(const JsonDocument& givenData, AsyncWebSocketClient* client){
 			Serial.println("Data was set");
@@ -1529,6 +1509,8 @@ class Light {
 			timeSinceLastDataSet = millis();
 			presetIsSaved = false;
 			lastClient = client;
+
+			buildColorArray();
 		}
 		void resetLastClient(AsyncWebSocketClient* client){
 			if (lastClient == client){
@@ -1540,6 +1522,43 @@ class Light {
 			String response;
       serializeJson(data, response);
       ws.textAll(response); 
+		}
+		void buildColorArray(){
+			const int TRANSITION_TIME = 1000;
+			const int TRANSITION_STEPTS = 10;
+
+			const int dataLength = data["times"].size();
+
+			// TODO: handle just one entry
+			int currentDataIndex = 0;
+			for(int i = 0; i < dataLength - 1; i++){
+				
+				colors[currentDataIndex] = data["times"][i]["c"][0];
+				
+				for(int j = 0; j < TRANSITION_STEPTS; j++){
+					colors[currentDataIndex] = blendColors(data["times"][i]["c"][0], data["times"][i + 1]["c"][0], j);
+					color_length_ms[currentDataIndex] = 
+
+					currentDataIndex += 1;
+				}
+
+				unsigned long durationMs = calculateDuration(data["times"][i]["t"], data["times"][i]["u"]);
+				durationMs -= TRANSITION_TIME / 2;
+
+				color_length_ms[i] = durationMs;
+
+				unsigned long currentDuration;
+				unsigned long nextDuration;
+
+				currentDataIndex += 1;
+			}
+		}
+		unsigned long calculateDuration(int unit, unsigned long duration){ 
+				// 'u' for unit (0=s, 1=m, 2=h)
+        unsigned long durationMs = duration * 1000;
+        if (unit == 1) durationMs *= 60;
+        if (unit == 2) durationMs *= 3600;
+				return durationMs;
 		}
 		void dim(bool dimDirection = true){
 			if(dimDirection){
@@ -1555,6 +1574,26 @@ class Light {
 			strip.show();
 		}
 
+		uint32_t blendColors(uint32_t color1, uint32_t color2, float progress){
+			// Unpack first color
+			uint8_t r1 = (color1 >> 16) & 0xFF;
+			uint8_t g1 = (color1 >> 8) & 0xFF;
+			uint8_t b1 = color1 & 0xFF;
+
+			// Unpack second color
+			uint8_t r2 = (color2 >> 16) & 0xFF;
+			uint8_t g2 = (color2 >> 8) & 0xFF;
+			uint8_t b2 = color2 & 0xFF;
+
+			// Interpolate
+			uint8_t r = r1 + (r2 - r1) * progress;
+			uint8_t g = g1 + (g2 - g1) * progress;
+			uint8_t b = b1 + (b2 - b1) * progress;
+
+			// Repack into hex
+			return ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
+		}
+
 		void update(unsigned long currentMillis) {
 			if (data.isNull()) return;
 
@@ -1568,9 +1607,11 @@ class Light {
             // Access color as uint32_t directly from JSON (much faster/lighter than strings)
 						int colorType = data["times"][currentTimeIndex]["p"];
 						if (colorType == 0){
+							// show simple color
 							uint32_t currentColor = data["times"][currentTimeIndex]["c"][0] | 0xFFFFFF;
 							strip.fill(currentColor);
 						} else if(colorType == 2){
+							// draw on lamp
 							for(int i = 0; i < data["times"][currentTimeIndex]["c"].size(); i++){
 								uint32_t currentColorInArray = data["times"][currentTimeIndex]["c"][i] | 0xFFFFFF;
 								strip.setPixelColor(i, currentColorInArray); // TODO: update only single pixel values?

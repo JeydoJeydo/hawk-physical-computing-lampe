@@ -842,27 +842,17 @@
 		function beginDraw(event) {
 			event.preventDefault();
 			drawing = true;
-			/*
-			const { x, y } = getPosition(event);
-			ctx.strokeStyle = currentDrawingColor;
-			ctx.beginPath();
-			ctx.moveTo(x, y);
-			*/
 		}
 
 		function progressDraw(event) {
 			if (!drawing) return;
 			event.preventDefault();
 			const { x, y } = getPosition(event);
-			//ctx.lineTo(x, y);
-			//ctx.stroke();
-
 			calculateDrawedColorArray(x, y);
 		}
 
 		function stopDraw(event) {
 			drawing = false;
-			//ctx.closePath();
 		}
 
 		function initDrawListeners() {
