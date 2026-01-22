@@ -189,6 +189,10 @@
 				</button>
 			</div>
 			<p class="font-header color-white">Presets <span id="presets-amount" class="font-regular">0</span></p>
+			<div id="no-preset-info">
+				<p class="font-semiHeader">You have no presets yet :(</p>
+				<p class="font-descriptive">Press the plus button above the timeline to create one.</p>
+			</div>
 			<div id="presets">
 				<div class="preset clone">
 					<div class="preset-left">
@@ -595,6 +599,11 @@
 		.header-list {
 			justify-content: flex-end;
 		}
+		#no-preset-info {
+			position: absolute;
+			top: 50%;
+			transform: translateY(-50%);
+		}
 		#presets {
 			display: flex;
 			flex-direction: column;
@@ -791,6 +800,13 @@
 			canvas.width = canvasWidth;
 			canvas.height = canvasWidth;
 
+			drawLampOnCanvas();
+			initDrawListeners();
+		}
+		initDrawCanvas();
+
+		function drawLampOnCanvas() {
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			let canvasNormalized = canvas.width / 100;
 			rects.forEach((el) => {
 				el.x_n = canvasNormalized * el.x;
@@ -798,27 +814,17 @@
 				el.width_n = canvasNormalized * el.width;
 				el.height_n = canvasNormalized * el.height;
 			});
-
-			ctx.save();
 			ctx.fillStyle = "#575757";
 			rects.forEach((el) => {
 				ctx.fillRect(el.x_n, el.y_n, el.width_n, el.height_n);
 			});
-			ctx.restore();
-
-			ctx.save();
-			ctx.beginPath();
 			rects.forEach((el) => {
 				ctx.rect(el.x_n, el.y_n, el.width_n, el.height_n);
 			});
-			ctx.clip();
 			ctx.lineWidth = 20;
 			ctx.lineCap = "round";
 			ctx.lineJoin = "round";
-
-			initDrawListeners();
 		}
-		initDrawCanvas();
 
 		let drawing = false;
 
@@ -842,25 +848,27 @@
 		function beginDraw(event) {
 			event.preventDefault();
 			drawing = true;
+			/*
 			const { x, y } = getPosition(event);
 			ctx.strokeStyle = currentDrawingColor;
 			ctx.beginPath();
 			ctx.moveTo(x, y);
+			*/
 		}
 
 		function progressDraw(event) {
 			if (!drawing) return;
 			event.preventDefault();
 			const { x, y } = getPosition(event);
-			ctx.lineTo(x, y);
-			ctx.stroke();
+			//ctx.lineTo(x, y);
+			//ctx.stroke();
 
 			calculateDrawedColorArray(x, y);
 		}
 
 		function stopDraw(event) {
 			drawing = false;
-			ctx.closePath();
+			//ctx.closePath();
 		}
 
 		function initDrawListeners() {
@@ -927,8 +935,8 @@
 		let xStep = 0;
 		let yStep = 0;
 		let lastCalculatedIndex = -1;
+		let buildLedArray = Array(96).fill(0);
 		function calculateDrawedColorArray(x, y) {
-			let buildLedArray = Array(96).fill(0);
 			let currentIndex = -1;
 			for (let i = 0; i < rects.length; i++) {
 				let entry = rects[i];
@@ -1075,8 +1083,10 @@
 			} else if (data.times[data.activeTime].p == 2) {
 				document.querySelector(".color-widget-2").style.display = "block";
 				document.querySelector(".color-widget-0").style.display = "none";
+				drawLampOnCanvas();
 				colorPixelsOnDrawWidget(data.times[data.activeTime].c);
 			}
+			buildLedArray = data.times[data.activeTime].c;
 
 			document.querySelector("#duration-teller").value = data.times[data.activeTime].t;
 			document.querySelector("#duration-unit").innerText = convertTimeUnit(data.times[data.activeTime].u);
@@ -1196,6 +1206,10 @@
 		}
 
 		function renderPresets(presets) {
+			if (presets.length == 0) {
+				return;
+			}
+			document.querySelector("#no-preset-info").style.display = "none";
 			let presetBody = document.querySelector("#presets");
 			let toDelete = document.querySelectorAll(".preset-delete-on-rerender");
 			toDelete.forEach((el, i) => {

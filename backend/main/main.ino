@@ -18,13 +18,6 @@
 // https://randomnerdtutorials.com/esp32-spi-communication-arduino/#custom-spi-pins
 // better json serializing: https://arduinojson.org/v7/assistant/#/step1
 
-/*
-const int SD_MOSI = 35;
-const int SD_MISO = 37;
-const int SCK = 36;
-const int CS = 39;
-*/
-
 const int statusLedPin = 4;
 
 const int LED_PIN = 6;
@@ -213,6 +206,7 @@ const char page[] PROGMEM = R"rawliteral(
 					<button class="btn-active remove-active duration-s" onclick="changeUnit('s')">Seconds</button>
 				</div>
 			</div>
+			<!--
 			<div class="widget-halfed">
 				<div class="widget">
 					<p class="widget-header">Lamp<br />Wakeup</p>
@@ -227,6 +221,7 @@ const char page[] PROGMEM = R"rawliteral(
 					</div>
 				</div>
 			</div>
+			-->
 		</div>
 		<div id="snackbar">
 			<p id="snackbar-text" class="color-black">test</p>
@@ -240,6 +235,10 @@ const char page[] PROGMEM = R"rawliteral(
 				</button>
 			</div>
 			<p class="font-header color-white">Presets <span id="presets-amount" class="font-regular">0</span></p>
+			<div id="no-preset-info">
+				<p class="font-semiHeader">You have no presets yet :(</p>
+				<p class="font-descriptive">Press the plus button above the timeline to create one.</p>
+			</div>
 			<div id="presets">
 				<div class="preset clone">
 					<div class="preset-left">
@@ -646,6 +645,11 @@ const char page[] PROGMEM = R"rawliteral(
 		.header-list {
 			justify-content: flex-end;
 		}
+		#no-preset-info {
+			position: absolute;
+			top: 50%;
+			transform: translateY(-50%);
+		}
 		#presets {
 			display: flex;
 			flex-direction: column;
@@ -740,7 +744,6 @@ const char page[] PROGMEM = R"rawliteral(
 			on: false,
 			restart: true,
 			activeTime: 0,
-			activeColor: 0,
 			times: [
 				{
 					t: 13,
@@ -806,6 +809,11 @@ const char page[] PROGMEM = R"rawliteral(
 
 		function changeType(type) {
 			data.times[data.activeTime].p = type;
+			if (type == 0) {
+				data.times[data.activeTime].c = [16777215];
+			} else if (type == 2) {
+				data.times[data.activeTime].c = Array(96).fill(0);
+			}
 			render();
 		}
 
@@ -838,6 +846,13 @@ const char page[] PROGMEM = R"rawliteral(
 			canvas.width = canvasWidth;
 			canvas.height = canvasWidth;
 
+			drawLampOnCanvas();
+			initDrawListeners();
+		}
+		initDrawCanvas();
+
+		function drawLampOnCanvas() {
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			let canvasNormalized = canvas.width / 100;
 			rects.forEach((el) => {
 				el.x_n = canvasNormalized * el.x;
@@ -862,10 +877,7 @@ const char page[] PROGMEM = R"rawliteral(
 			ctx.lineWidth = 20;
 			ctx.lineCap = "round";
 			ctx.lineJoin = "round";
-
-			initDrawListeners();
 		}
-		initDrawCanvas();
 
 		let drawing = false;
 
@@ -889,25 +901,27 @@ const char page[] PROGMEM = R"rawliteral(
 		function beginDraw(event) {
 			event.preventDefault();
 			drawing = true;
+			/*
 			const { x, y } = getPosition(event);
 			ctx.strokeStyle = currentDrawingColor;
 			ctx.beginPath();
 			ctx.moveTo(x, y);
+			*/
 		}
 
 		function progressDraw(event) {
 			if (!drawing) return;
 			event.preventDefault();
 			const { x, y } = getPosition(event);
-			ctx.lineTo(x, y);
-			ctx.stroke();
+			//ctx.lineTo(x, y);
+			//ctx.stroke();
 
 			calculateDrawedColorArray(x, y);
 		}
 
 		function stopDraw(event) {
 			drawing = false;
-			ctx.closePath();
+			//ctx.closePath();
 		}
 
 		function initDrawListeners() {
@@ -971,10 +985,10 @@ const char page[] PROGMEM = R"rawliteral(
 				[6, -1],
 			],
 		];
-		let buildLedArray = Array(96).fill(0);
 		let xStep = 0;
 		let yStep = 0;
 		let lastCalculatedIndex = -1;
+		let buildLedArray = Array(96).fill(0);
 		function calculateDrawedColorArray(x, y) {
 			let currentIndex = -1;
 			for (let i = 0; i < rects.length; i++) {
@@ -994,7 +1008,6 @@ const char page[] PROGMEM = R"rawliteral(
 			let yLed = Math.floor((y - rects[currentIndex].y_n) / yStep);
 			let calculatedIndex = ledIndexes[currentIndex][yLed][xLed];
 			buildLedArray[calculatedIndex] = convertToColorInt(currentDrawingColor);
-			console.log(buildLedArray);
 			data.times[data.activeTime].c = buildLedArray;
 
 			if (calculatedIndex !== lastCalculatedIndex && visualizeChanges) {
@@ -1002,6 +1015,7 @@ const char page[] PROGMEM = R"rawliteral(
 			}
 
 			lastCalculatedIndex = calculatedIndex;
+			colorPixelsOnDrawWidget(buildLedArray);
 		}
 
 		function colorPixelsOnDrawWidget(colors) {
@@ -1016,8 +1030,8 @@ const char page[] PROGMEM = R"rawliteral(
 
 						index = ledIndexes[sideI][rowI].indexOf(i);
 						if (index !== -1 && colors[i] !== 0) {
-							let pixelHeight = Math.floor(rects[sideI].height_n / ledIndexes[sideI].length);
-							let pixelWidth = Math.floor(rects[sideI].width_n / ledIndexes[sideI][rowI].length);
+							let pixelHeight = rects[sideI].height_n / ledIndexes[sideI].length;
+							let pixelWidth = rects[sideI].width_n / ledIndexes[sideI][rowI].length;
 							let x = rects[sideI].x_n + pixelWidth * index;
 							let y = rects[sideI].y_n + pixelHeight * rowI;
 							ctx.fillStyle = "#" + colors[i].toString(16).padStart(6, "0");
@@ -1122,8 +1136,10 @@ const char page[] PROGMEM = R"rawliteral(
 			} else if (data.times[data.activeTime].p == 2) {
 				document.querySelector(".color-widget-2").style.display = "block";
 				document.querySelector(".color-widget-0").style.display = "none";
+				drawLampOnCanvas();
 				colorPixelsOnDrawWidget(data.times[data.activeTime].c);
 			}
+			buildLedArray = data.times[data.activeTime].c;
 
 			document.querySelector("#duration-teller").value = data.times[data.activeTime].t;
 			document.querySelector("#duration-unit").innerText = convertTimeUnit(data.times[data.activeTime].u);
@@ -1204,7 +1220,6 @@ const char page[] PROGMEM = R"rawliteral(
 					on: false,
 					restart: true,
 					activeTime: 0,
-					activeColor: 0,
 					times: [
 						{
 							t: 13,
@@ -1244,6 +1259,10 @@ const char page[] PROGMEM = R"rawliteral(
 		}
 
 		function renderPresets(presets) {
+			if (presets.length == 0) {
+				return;
+			}
+			document.querySelector("#no-preset-info").style.display = "none";
 			let presetBody = document.querySelector("#presets");
 			let toDelete = document.querySelectorAll(".preset-delete-on-rerender");
 			toDelete.forEach((el, i) => {
