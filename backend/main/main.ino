@@ -1633,27 +1633,52 @@ class Light {
 
 			bool isOn = data["on"] | false;
 
-			// 1. DETECTION: Trigger transition if index or power state changes
+			// 1. DETECTION: Trigger when index or power state changes
 			if (isOn != lastOnState || currentTimeIndex != lastAppliedIndex) {
 				
-				// Capture the "From" color (current state of the strip)
-				// If it was off, 'from' is black. Otherwise, it's the previous 'To' color.
-				colorFrom = !lastOnState ? 0 : colorTo;
+				int colorType = data["times"][currentTimeIndex]["p"] | 0;
 
-				// Capture the "To" color from JSON once
 				if (!isOn) {
+					// Hard turn off
 					colorTo = 0;
-				} else {
+					isTransitioning = true; 
+					transitionStartTime = currentMillis;
+					colorFrom = lastOnState ? colorTo : 0; // Capture current before state change
+				} 
+				else if (colorType == 0) {
+					// TYPE 0: Smooth Transition Logic
+					colorFrom = (lastOnState) ? colorTo : 0;
 					colorTo = data["times"][currentTimeIndex]["c"][0] | 0xFFFFFF;
+					transitionStartTime = currentMillis;
+					isTransitioning = true;
+				} 
+				else if (colorType == 2) {
+					// TYPE 2: Hard Transition Logic (Per-Pixel)
+					isTransitioning = false; // Disable smooth blending for this mode
+					
+					auto colorArray = data["times"][currentTimeIndex]["c"];
+					size_t numColors = colorArray.size();
+					
+					for (size_t i = 0; i < strip.numPixels(); i++) {
+						if (i < numColors) {
+							uint32_t c = colorArray[i] | 0xFFFFFF;
+							strip.setPixelColor(i, c);
+						} else {
+							strip.setPixelColor(i, 0); // Clear remaining pixels if array is shorter than strip
+						}
+					}
+					strip.show();
+					
+					// Update colorTo to the first color of the array 
+					// so that if the NEXT transition is Type 0, it has a starting point.
+					colorTo = colorArray[0] | 0xFFFFFF; 
 				}
 
-				transitionStartTime = currentMillis;
-				isTransitioning = true;
-				
+				// Standard state updates
 				lastOnState = isOn;
 				lastAppliedIndex = currentTimeIndex;
 
-				// Pre-calculate next switch time (as you did before)
+				// Pre-calculate next switch time
 				unsigned long duration = data["times"][currentTimeIndex]["t"] | 0;
 				int unit = data["times"][currentTimeIndex]["u"] | 1;
 				unsigned long durationMs = duration * 1000;
@@ -1662,24 +1687,22 @@ class Light {
 				nextSwitchTime = currentMillis + durationMs;
 			}
 
-			// 2. EXECUTION: Handle the smooth fade
+			// 2. EXECUTION: Only runs for Type 0 or turning OFF
 			if (isTransitioning) {
 				float progress = (currentMillis - transitionStartTime) / (float)TRANSITION_MS;
 
 				if (progress >= 1.0f) {
-					// Transition finished
 					strip.fill(colorTo);
 					strip.show();
 					isTransitioning = false;
 				} else {
-					// Calculate intermediate color
 					uint32_t blended = blendColors(colorFrom, colorTo, progress);
 					strip.fill(blended);
 					strip.show();
 				}
 			}
 
-			// 3. TIMER CHECK: Advance index (same as your original code)
+			// 3. TIMER CHECK (Same as before)
 			if (isOn && currentMillis >= nextSwitchTime) {
 				if (currentTimeIndex < (int)data["times"].size() - 1) {
 					currentTimeIndex++;
@@ -1687,15 +1710,6 @@ class Light {
 					currentTimeIndex = 0;
 				} else {
 					data["on"] = 0;
-				}
-			}
-
-			// 4. DOWNTIME TASKS (Presets, etc.)
-			if (currentMillis - timeSinceLastDataSet > MS_TILL_DOWNTIME) {
-				const char* title = data["title"];
-				if (!presetIsSaved && title && title[0] != '\0') {
-					presetIsSaved = true;
-					presets.addPreset(data, lastClient);
 				}
 			}
 		}
