@@ -8,7 +8,7 @@
 
 #ifndef APSSID
 #define APSSID "lamp"
-#define APPSK "letmecontrollit"
+#define APPSK "letmecontrolit"
 #endif
 #ifdef __AVR__
  #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
