@@ -7,8 +7,8 @@
 #include "LittleFS.h"
 
 #ifndef APSSID
-#define APSSID "ESPap"
-#define APPSK "thereisnospoon"
+#define APSSID "lamp"
+#define APPSK "letmecontrollit"
 #endif
 #ifdef __AVR__
  #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
