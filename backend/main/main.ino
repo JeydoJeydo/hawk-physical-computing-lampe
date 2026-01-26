@@ -1357,6 +1357,7 @@ class Presets {
 	// https://github.com/espressif/arduino-esp32/blob/master/libraries/LittleFS/examples/LITTLEFS_test/LITTLEFS_test.ino
 	private:
 		const char* _dirPath = "/presets";
+		int countOfContinuousPresetCycleErrors = 0;
 	public:
 		void init(){
 			if(!LittleFS.begin(true)){
@@ -1439,39 +1440,73 @@ class Presets {
 			}
 		}
 		void streamAllPresets(AsyncWebServerRequest *request) {
-      AsyncResponseStream *response = request->beginResponseStream("application/json");
-      
-      JsonDocument masterDoc;
-      JsonArray array = masterDoc.to<JsonArray>();
+			AsyncResponseStream *response = request->beginResponseStream("application/json");
+			
+			File root = LittleFS.open(_dirPath);
+			if (!root || !root.isDirectory()) {
+					response->print("[]");
+					request->send(response);
+					return;
+			}
 
-      File root = LittleFS.open(_dirPath);
-      if (!root || !root.isDirectory()) {
-        response->print("[]");
-        request->send(response);
-        return;
-      }
+			response->print("["); // Start the JSON array
+			
+			File file = root.openNextFile();
+			bool first = true;
+			int count = 0;
 
-      File file = root.openNextFile();
-      int count = 0;
+			JsonDocument tempDoc; 
 
-      while (file && count < 50) {
-        String fileName = String(file.name());
-        if (!file.isDirectory() && fileName.endsWith(".json")) {
-          JsonDocument tempDoc;
-          DeserializationError error = deserializeJson(tempDoc, file);
+			while (file && count < 50) {
+					String fileName = String(file.name());
+					if (!file.isDirectory() && fileName.endsWith(".json")) {
+							tempDoc.clear(); // Wipe the memory for the next file
+							DeserializationError error = deserializeJson(tempDoc, file);
+							if (!error) {
+									if (!first) response->print(","); // Add comma between objects
+									tempDoc["filename"] = fileName;
+									serializeJson(tempDoc, *response); // Stream this single object immediately
+									first = false;
+							}
+					}
+					file.close();
+					file = root.openNextFile();
+					count++;
+			}
+			root.close();
+			response->print("]");
+			request->send(response);
+		}
+		bool getPresetByIndex(int targetIndex, JsonDocument& doc) {
+			File root = LittleFS.open(_dirPath);
+			if (!root || !root.isDirectory()) return false;
 
-          if (!error) {
-            tempDoc["filename"] = fileName;
-            array.add(tempDoc);
-          }
-        }
-        file = root.openNextFile();
-        count++;
-      }
-      root.close();
-      serializeJson(masterDoc, *response);
-      request->send(response);
-    }
+			File file = root.openNextFile();
+			int currentIndex = 0;
+			bool found = false;
+
+			while (file && currentIndex < 50) {
+					String fileName = String(file.name());
+					if (!file.isDirectory() && fileName.endsWith(".json")) {
+							if (currentIndex == targetIndex) {
+									DeserializationError error = deserializeJson(doc, file);
+									if (!error) {
+											doc["filename"] = fileName;
+											found = true;
+									}
+									file.close();
+									break;
+							}
+							currentIndex++;
+					}
+					
+					file.close();
+					file = root.openNextFile();
+			}
+			
+			root.close();
+			return found;
+		}
 };
 Presets presets;
 
@@ -1513,18 +1548,22 @@ class Light {
 			lastAppliedIndex = -1;
 			timeSinceLastDataSet = millis();
 			presetIsSaved = false;
-			lastClient = client;
+			if(client != nullptr){
+				lastClient = client;
+			}
 		}
 		void resetLastClient(AsyncWebSocketClient* client){
 			if (lastClient == client){
 				lastClient = nullptr;
 			}
 		}
+		void broadcastState() {
+  		size_t len = serializeJson(getData(), jsonBuffer);
+  		ws.textAll(jsonBuffer, len);
+		}
 		void toggleOnOff(){
 			data["on"] = !data["on"];
-			String response;
-      serializeJson(data, response);
-      ws.textAll(response); 
+			broadcastState(); 
 		}
 		unsigned long calculateDuration(int unit, unsigned long duration){ 
 				// 'u' for unit (0=s, 1=m, 2=h)
@@ -1572,7 +1611,6 @@ class Light {
 
 			bool isOn = data["on"] | false;
 
-			// 1. DETECTION: Trigger transition if index or power state changes
 			if (isOn != lastOnState || currentTimeIndex != lastAppliedIndex) {
 				int colorType = data["times"][currentTimeIndex]["p"] | 0;
 
@@ -1584,14 +1622,13 @@ class Light {
 					isTransitioning = true;
 				} 
 				else if (colorType == 0) {
-					// TYPE 0: Smooth transition between single colors
 					colorFrom = (lastOnState) ? colorTo : 0;
 					colorTo = data["times"][currentTimeIndex]["c"][0] | 0xFFFFFF;
 					transitionStartTime = currentMillis;
 					isTransitioning = true;
 				} 
 				else if (colorType == 2) {
-					// TYPE 2: Hard transition for per-pixel arrays
+					//Hard transition for per-pixel arrays TODO: make smooth transition here possible too
 					isTransitioning = false; 
 					
 					auto colorArray = data["times"][currentTimeIndex]["c"];
@@ -1607,9 +1644,7 @@ class Light {
 						}
 					}
 					strip.show();
-					
-					// Save the first color of the array as the "current" color 
-					// so the NEXT transition has a starting point.
+
 					colorTo = (numColors > 0) ? (uint32_t)(colorArray[0] | 0xFFFFFF) : 0;
 				}
 
@@ -1626,7 +1661,7 @@ class Light {
 				nextSwitchTime = currentMillis + durationMs;
 			}
 
-			// 2. EXECUTION: Handle the 1000ms smooth fade (Type 0 and Power Off)
+			// Transition
 			if (isTransitioning) {
 				float progress = (currentMillis - transitionStartTime) / (float)TRANSITION_MS;
 
@@ -1641,7 +1676,6 @@ class Light {
 				}
 			}
 
-			// 3. TIMER CHECK: Advance index when time is up
 			if (isOn && currentMillis >= nextSwitchTime) {
 				if (currentTimeIndex < (int)data["times"].size() - 1) {
 					currentTimeIndex++;
@@ -1649,13 +1683,12 @@ class Light {
 					if (data["restart"] == 1) {
 						currentTimeIndex = 0;
 					} else {
-						data["on"] = 0; // This will trigger the "Off" transition in the next loop
+						data["on"] = 0;
 					}
 				}
 			}
 
-			// 4. DOWNTIME TASKS: Save presets when idle
-			// Added !isTransitioning check so we don't save to Flash while LEDs are fading
+			// Downtime tasks
 			if (!isTransitioning && (timeSinceLastDataSet + MS_TILL_DOWNTIME < currentMillis)) {
 				const char* title = data["title"];
 				if (presetIsSaved == false && title && title[0] != '\0') {
@@ -1687,9 +1720,26 @@ class Light {
 };
 Light light;
 
-void broadcastState() {
-  size_t len = serializeJson(light.getData(), jsonBuffer);
-  ws.textAll(jsonBuffer, len);
+int countOfContinuousPresetCycleErrors = 0;
+int currentPresetIndex = 0;
+void cycleToNextPreset(){
+	Serial.println(currentPresetIndex);
+	if(countOfContinuousPresetCycleErrors >= 2){
+		status.error("");
+		Serial.println("Can't cycle through Presets via button on lamp");
+		return;
+	}
+	JsonDocument doc;
+	if(presets.getPresetByIndex(currentPresetIndex, doc)){
+		light.setData(doc, nullptr);
+		light.broadcastState();
+		currentPresetIndex++;
+		countOfContinuousPresetCycleErrors = 0;
+	}else{
+		countOfContinuousPresetCycleErrors++;
+		currentPresetIndex = 0;
+		cycleToNextPreset();
+	}
 }
 
 // part of code is from the documentation: https://github.com/ESP32Async/ESPAsyncWebServer/wiki#async-websocket-event
@@ -1710,7 +1760,7 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
 
         // 4. Broadcast the update WITHOUT creating a temporary String object
         // This helper function sends the globalDoc to all clients
-        broadcastState();
+        light.broadcastState();
       }else{
 				status.error("");
 			}
@@ -1802,22 +1852,29 @@ int lastButtonState = LOW;  // the previous reading from the input pin
 bool longPressIsInAction = false;
 bool longPressDirection = true; // false = dim / true = brighten
 
+int buttonStateHotkey;
+int lastButtonStateHotkey = LOW;
+
 // the following variables are unsigned longs because the time, measured in
 // milliseconds, will quickly become a bigger number than can be stored in an int.
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
 
+unsigned long lastDebounceTimeHotkey = 0;
+
 const int msForLongpress = 500;
 
 void loop() {
-  int reading = digitalRead(onOffButtonPin);
-  if (reading != lastButtonState) {
+  int onOffState = digitalRead(onOffButtonPin);
+	int hotkeyState = digitalRead(hotkeyButtonPin);
+  if (onOffState != lastButtonState) {
     lastDebounceTime = millis();
   }
 
+	// on off button handling
   if ((millis() - lastDebounceTime) > debounceDelay) {
-    if (reading != buttonState) {
-      buttonState = reading;
+    if (onOffState != buttonState) {
+      buttonState = onOffState;
       if (buttonState == LOW && !longPressIsInAction) {
 				light.toggleOnOff();
       }else if(buttonState == LOW && longPressIsInAction){
@@ -1829,7 +1886,18 @@ void loop() {
 	if((millis() - lastDebounceTime) > msForLongpress && buttonState == HIGH){
 		longPressIsInAction = true;
 	}
-  lastButtonState = reading;
+  lastButtonState = onOffState;
+
+	// hotkey button handling
+	if ((millis() - lastDebounceTimeHotkey) > debounceDelay) {
+    if (hotkeyState != buttonStateHotkey) {
+      buttonStateHotkey = hotkeyState;
+      if (buttonStateHotkey == LOW) {
+				cycleToNextPreset();
+      }
+    }
+  }
+  buttonStateHotkey = hotkeyState;
 
 	unsigned long currentMillis = millis();
 
